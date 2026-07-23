@@ -1,0 +1,72 @@
+# Local secrets and environment configuration
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/local.settings.json
+**/local.settings.*.json
+!**/local.settings.example.json
+
+# Frontend dependencies, builds, coverage, and tool caches
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/coverage/
+**/.vite/
+**/*.tsbuildinfo
+
+# Go build output and caches
+**/.gocache/
+**/bin/
+*.exe
+*.test
+coverage.out
+
+# Azure Functions packaging and local emulators
+azure-functions/*.zip
+**/.azurite/
+
+# Terraform local state, plans, variables, and overrides
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.json.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Logs and temporary output
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+tmp/
+.tmp/
+
+# Local editor and agent state
+.idea/
+.vscode/
+.agents/
+.codex/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

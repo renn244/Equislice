@@ -1,0 +1,33 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  color: #17202b;
+  background: #f4f6f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --eq-canvas: #f4f6f7;
+  --eq-surface: #ffffff;
+  --eq-ink: #17202b;
+  --eq-muted: #596774;
+  --eq-blue: #1668e3;
+  --eq-blue-hover: #0f56c2;
+  --eq-amber: #e9a23b;
+  --eq-line: #ccd4db;
+  --eq-line-soft: #dfe5e9;
+  --eq-error: #b42318;
+  --eq-shadow: 0 24px 56px rgba(23, 32, 43, 0.12);
+  --eq-display: Georgia, "Times New Roman", serif;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: var(--eq-canvas); }
+body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--eq-canvas); color: var(--eq-ink); }
+button, input, textarea, select { font: inherit; }
+img { max-width: 100%; }
+.app-root { min-height: 100vh; min-height: 100svh; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

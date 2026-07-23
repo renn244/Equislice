@@ -1,0 +1,124 @@
+package services
+
+import (
+	"backend/internal/dto"
+	"backend/internal/ports"
+	"context"
+	"encoding/json"
+	"errors"
+	"mime/multipart"
+	"path/filepath"
+	"strconv"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type PanoramaService struct {
+	PanoramaStorage      ports.FileService
+	PanoramaSliceStorage ports.FileService
+	DB                   ports.DBService[dto.PanoramaEntity]
+	Queue                ports.QueueService
+}
+
+func NewPanoramaService(
+	panoramaStorage ports.FileService, panoramaSliceStorage ports.FileService, db ports.DBService[dto.PanoramaEntity], queue ports.QueueService,
+) *PanoramaService {
+	return &PanoramaService{
+		PanoramaStorage:      panoramaStorage,
+		PanoramaSliceStorage: panoramaSliceStorage,
+		DB:                   db,
+		Queue:                queue,
+	}
+}
+
+func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName string, panoramaFile multipart.File, row int, column int, fileFormats string) (string, error) {
+	v4, err := uuid.NewRandom()
+	if err != nil {
+		return "", errors.New("failed to generate v4 uuid")
+	}
+
+	jobId := v4.String()
+	fileName := jobId + "-" + filepath.Base(panoramaFileName)
+
+	// upload the blob storage
+	err = s.PanoramaStorage.Upload(ctx, fileName, panoramaFile)
+	if err != nil {
+		return "", errors.New("failed to upload file")
+	}
+
+	// insert data into the table
+	_, err = s.DB.Insert(ctx, dto.PanoramaEntity{
+		JobId:             jobId,
+		InitialPanoramaId: fileName,
+		Status:            "Queued",
+		Row:               row,
+		Column:            column,
+		FileFormat:        fileFormats,
+	}, &jobId)
+	if err != nil {
+		s.PanoramaStorage.DeleteFile(ctx, fileName)
+		return "", errors.New("failed to add entity")
+	}
+
+	JobQueueMessage, err := json.Marshal(dto.PanoramaQueueMessage{
+		JobId: jobId,
+	})
+	if err != nil {
+		s.DB.Delete(ctx, jobId)
+		s.PanoramaStorage.DeleteFile(ctx, fileName)
+		return "", errors.New("failed to add queue")
+	}
+
+	// Enqueue the job
+	_, err = s.Queue.Enqueue(ctx, string(JobQueueMessage))
+	if err != nil {
+		s.DB.Delete(ctx, jobId)
+		s.PanoramaStorage.DeleteFile(ctx, fileName)
+		return "", errors.New("failed to enqueue message")
+	}
+
+	return jobId, nil
+}
+
+func (s *PanoramaService) GetStatus(ctx context.Context, jobId string) (*dto.PanoramaEntity, error) {
+	body, err := s.DB.Find(ctx, jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &body, nil
+}
+
+func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]string, error) {
+	body, err := s.DB.Find(ctx, jobId)
+	if err != nil {
+		return nil, errors.New("failed to find job")
+	}
+
+	if body.Status != "Completed" {
+		return nil, errors.New("not yet complete")
+	}
+
+	if body.PanoramaSliceId == nil {
+		return nil, errors.New("not yet complete")
+	}
+
+	var sasUrls []string
+
+	for i := range body.Row {
+		for j := range body.Column {
+			blobName := *body.PanoramaSliceId + "_" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
+
+			var sasUrl string
+			sasUrl, err = s.PanoramaSliceStorage.GenerateShareUrl(ctx, blobName, 1*time.Hour)
+			if err != nil {
+				return nil, err
+			}
+
+			sasUrls = append(sasUrls, sasUrl)
+		}
+	}
+
+	return sasUrls, nil
+}
