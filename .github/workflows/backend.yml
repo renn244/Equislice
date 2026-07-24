@@ -1,0 +1,97 @@
+name: backend.yml
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - backend/**
+      - .github/workflows/backend.yml
+
+  pull_request:
+    paths:
+      - backend/**
+      - .github/workflows/backend.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+
+      - name: Set up go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify Dependencies
+        run: go mod verify
+        working-directory: backend
+
+      - name: Run Linter
+        run: go vet ./...
+        working-directory: backend
+
+      - name: Run Tests
+        run: go test ./...
+        working-directory: backend
+
+      - name: Build Backend
+        run: GOOS=linux GOARCH=amd64 go build cmd/main.go
+        working-directory: backend
+
+      - name: Build Container
+        run: docker build -t equislice-backend:ci .
+        working-directory: backend
+
+
+  deploy:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+
+      - name: Build Container
+        run: docker build -t ghcr.io/renn244/equislice-backend:${{ github.sha }} .
+        working-directory: backend
+
+      - name: Docker Login To Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Image to GHCR
+        run: docker push ghcr.io/renn244/equislice-backend:${{ github.sha }}
+
+      - name: Login to Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy container to Azure
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: equislice-api-renn244
+          images: ghcr.io/renn244/equislice-backend:${{ github.sha }}

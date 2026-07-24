@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { createPanoramaSlice, getPanoramaDownloads, getPanoramaStatus } from './panorama-api'
 
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -21,7 +23,7 @@ test('submits the selected panorama as the backend multipart contract', async ()
   ).resolves.toEqual({ jobId: 'job-1' })
 
   const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-  expect(url).toBe('http://localhost:3000/api/panorama/slice')
+  expect(url).toBe(`${apiBaseUrl}/panorama/slice`)
   expect(init.method).toBe('POST')
   expect(init.body).toBeInstanceOf(FormData)
   expect((init.body as FormData).get('rows')).toBe('3')

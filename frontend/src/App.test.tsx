@@ -8,6 +8,9 @@ vi.mock('./lib/panorama-api', () => ({
   createPanoramaSlice: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
   getPanoramaStatus: vi.fn().mockResolvedValue({ status: 'Completed' }),
   getPanoramaDownloads: vi.fn().mockResolvedValue({ urlsSAS: ['https://tiles.example/0.jpg'] }),
+  getPanoramaArchiveUrl: vi.fn(
+    (jobId: string) => `https://api.example/panorama/download-all?job-id=${jobId}`,
+  ),
 }))
 
 afterEach(() => {
@@ -143,9 +146,13 @@ test('submits a valid cutter job and exposes completed tile downloads', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Create tiles' }))
 
   expect(await screen.findByText('Job completed')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Download tile 1' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Sliced tile 1' })).toHaveAttribute(
     'href',
     'https://tiles.example/0.jpg',
+  )
+  expect(screen.getByRole('link', { name: 'Download all tiles (.zip)' })).toHaveAttribute(
+    'href',
+    'https://api.example/panorama/download-all?job-id=job-1',
   )
 })
 
