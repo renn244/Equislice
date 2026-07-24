@@ -97,6 +97,9 @@
 .cutter-tile-gallery a { display: block; min-width: 0; background: #edf2f5; }
 .cutter-tile-gallery img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
 .cutter-tile-gallery a:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--eq-blue); outline-offset: -2px; }
+.cutter-download-all { display: inline-flex; width: fit-content; align-items: center; justify-content: center; margin-top: 4px; padding: 10px 16px; border: 1px solid var(--eq-blue); border-radius: 5px; background: var(--eq-blue); box-shadow: 0 8px 20px rgba(22, 104, 227, .18); color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
+.cutter-download-all:hover { background: var(--eq-blue-hover); color: #fff; }
+.cutter-download-all:focus-visible { outline: 2px solid var(--eq-blue); outline-offset: 3px; }
 
 @media (max-width: 960px) {
   .cutter-header, .cutter-main { width: min(100% - 48px, 1120px); }

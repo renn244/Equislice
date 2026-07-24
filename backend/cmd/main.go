@@ -96,6 +96,7 @@ func main() {
 	r.Post("/api/panorama/slice", panoramaHandler.PostPanorama)
 	r.Get("/api/panorama/status", panoramaHandler.GetStatus)
 	r.Get("/api/panorama/download", panoramaHandler.GetShareUrl)
+	r.Get("/api/panorama/download-all", panoramaHandler.GetArchive)
 
 	log.Println("Server is Running on http://localhost:3000")
 	err = http.ListenAndServe(":3000", r)

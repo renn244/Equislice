@@ -1,11 +1,14 @@
 package services
 
 import (
+	"archive/zip"
 	"backend/internal/dto"
 	"backend/internal/ports"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mime/multipart"
 	"path/filepath"
 	"strconv"
@@ -121,4 +124,40 @@ func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]stri
 	}
 
 	return sasUrls, nil
+}
+
+func (s *PanoramaService) GetArchive(ctx context.Context, jobId string) ([]byte, error) {
+	body, err := s.DB.Find(ctx, jobId)
+	if err != nil {
+		return nil, errors.New("failed to find job")
+	}
+
+	if body.Status != "Completed" || body.PanoramaSliceId == nil {
+		return nil, errors.New("not yet complete")
+	}
+
+	var archive bytes.Buffer
+	zipWriter := zip.NewWriter(&archive)
+
+	for i := range body.Row {
+		for j := range body.Column {
+			blobName := *body.PanoramaSliceId + "_" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
+			tileName := fmt.Sprintf("tile_r%02d_c%02d.jpg", i+1, j+1)
+
+			tileWriter, createErr := zipWriter.Create(tileName)
+			if createErr != nil {
+				return nil, createErr
+			}
+
+			if downloadErr := s.PanoramaSliceStorage.Download(ctx, blobName, tileWriter); downloadErr != nil {
+				return nil, downloadErr
+			}
+		}
+	}
+
+	if err = zipWriter.Close(); err != nil {
+		return nil, err
+	}
+
+	return archive.Bytes(), nil
 }

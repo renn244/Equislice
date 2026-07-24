@@ -1,4 +1,4 @@
-const apiBaseUrl = 'http://localhost:3000/api'
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 
 type PanoramaSliceInput = {
   file: File
@@ -36,4 +36,8 @@ export function getPanoramaStatus(jobId: string) {
 
 export function getPanoramaDownloads(jobId: string) {
   return requestJson<{ urlsSAS: string[] }>(`/panorama/download?job-id=${encodeURIComponent(jobId)}`)
+}
+
+export function getPanoramaArchiveUrl(jobId: string) {
+  return `${apiBaseUrl}/panorama/download-all?job-id=${encodeURIComponent(jobId)}`
 }

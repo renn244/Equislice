@@ -124,3 +124,22 @@ func (h *PanoramaHandler) GetShareUrl(w http.ResponseWriter, r *http.Request) {
 		UrlsSAS: sasUrls,
 	})
 }
+
+func (h *PanoramaHandler) GetArchive(w http.ResponseWriter, r *http.Request) {
+	jobId := r.URL.Query().Get("job-id")
+	if jobId == "" {
+		util.WriteError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+
+	archive, err := h.PanoramaService.GetArchive(r.Context(), jobId)
+	if err != nil {
+		util.WriteError(w, http.StatusInternalServerError, "error creating tile archive")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="equislice-`+jobId+`.zip"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(archive)
+}

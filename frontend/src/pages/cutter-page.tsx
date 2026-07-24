@@ -1,7 +1,7 @@
 import { FileIcon, UploadIcon } from '@primer/octicons-react'
 import { Button, Heading, Stack, Text } from '@primer/react'
 import { useEffect, useState, type ChangeEvent, type CSSProperties } from 'react'
-import { createPanoramaSlice, getPanoramaDownloads, getPanoramaStatus } from '../lib/panorama-api'
+import { createPanoramaSlice, getPanoramaArchiveUrl, getPanoramaDownloads, getPanoramaStatus } from '../lib/panorama-api'
 import './cutter-page.css'
 
 type ImageDimensions = {
@@ -265,6 +265,11 @@ export function CutterPage() {
                     </a>
                   ))}
                 </div>
+                {jobId && (
+                  <a className="cutter-download-all" href={getPanoramaArchiveUrl(jobId)}>
+                    Download all tiles (.zip)
+                  </a>
+                )}
               </div>
             )}
           </section>

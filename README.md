@@ -75,6 +75,7 @@ The cutter saves the most recent panorama job UUID in browser `localStorage`. Re
 | `POST` | `/api/panorama/slice` | Creates a panorama slicing job; multipart fields: `file`, `rows`, `columns`, `fileFormat` |
 | `GET` | `/api/panorama/status?job-id=<uuid>` | Returns the job status |
 | `GET` | `/api/panorama/download?job-id=<uuid>` | Returns download URLs when processing is complete |
+| `GET` | `/api/panorama/download-all?job-id=<uuid>` | Downloads all completed tiles as one ZIP archive |
 
 ## Azure Function
 
