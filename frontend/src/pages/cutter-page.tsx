@@ -169,9 +169,9 @@ export function CutterPage() {
                 <Text as="p">JPG, PNG, WebP, or another browser-readable image format.</Text>
               </Stack>
 
-              <div className="upload-control">
+              <label className="upload-control" htmlFor="panorama-image">
                 <UploadIcon aria-hidden="true" size={28} />
-                <label htmlFor="panorama-image">Panorama image</label>
+                <span>Panorama image</span>
                 <input
                   accept="image/*"
                   id="panorama-image"
@@ -179,7 +179,7 @@ export function CutterPage() {
                   onChange={handleFileChange}
                   type="file"
                 />
-              </div>
+              </label>
               {fileError && <Text as="p" className="cutter-error" role="alert">{fileError}</Text>}
 
               {selectedFile && dimensions && (

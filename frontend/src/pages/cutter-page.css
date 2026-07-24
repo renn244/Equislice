@@ -45,6 +45,7 @@
   border-radius: 6px;
   background: #f8fafb;
   color: var(--eq-muted);
+  cursor: pointer;
   transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
 }
 .upload-control:hover, .upload-control:has(input:focus-visible) {
@@ -53,7 +54,7 @@
   box-shadow: 0 0 0 3px rgba(22, 104, 227, .14);
 }
 .upload-control svg { color: var(--eq-blue); }
-.upload-control label, .grid-fields label { color: var(--eq-ink); font-size: 14px; font-weight: 600; }
+.upload-control > span, .grid-fields label { color: var(--eq-ink); font-size: 14px; font-weight: 600; }
 .upload-control input { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; clip-path: inset(50%); border: 0; }
 
 .file-summary { display: flex; gap: 12px; align-items: center; padding: 16px; border: 1px solid #b8d1ec; border-radius: 6px; background: #eef5ff; }

@@ -11,16 +11,23 @@ EquiSlice turns an equirectangular panorama into an evenly sized grid of JPEG ti
 | `azure-functions/` | Go Azure Function that consumes panorama slice jobs |
 | `terraform/` | Azure infrastructure configuration |
 
-## Processing flow
+## Architecture flows
 
-```text
-Browser
-  -> POST http://localhost:3000/api/panorama/slice
-  -> Go API uploads the panorama, creates a job record, and queues it
-  -> Azure Function consumes panorama-slice
-  -> Azure Blob Storage receives generated JPEG tiles
-  -> Browser polls job status and requests download URLs
-```
+### 1. Submit a panorama job
+
+![Submit panorama job](docs/architecture/01-submit-panorama-job.png)
+
+### 2. Process the queued job
+
+![Process queued job](docs/architecture/02-process-queued-job.png)
+
+### 3. Check job status
+
+![Get job status](docs/architecture/03-get-job-status.png)
+
+### 4. Retrieve completed tiles
+
+![Retrieve completed tiles](docs/architecture/04-retrieve-completed-tiles.png)
 
 The frontend calls the local backend directly at `http://localhost:3000/api`; there is no development proxy.
 
