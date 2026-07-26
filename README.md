@@ -2,6 +2,8 @@
 
 EquiSlice turns an equirectangular panorama into an evenly sized grid of JPEG tiles. The browser uploads the image to a local Go API; the API writes the job to Azure Storage; and an Azure Queue-triggered Function generates the tiles.
 
+![Home Page](docs/website/homepage.png)
+
 ## Project layout
 
 | Directory | Purpose |
