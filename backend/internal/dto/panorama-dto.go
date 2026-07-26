@@ -26,7 +26,9 @@ type PostPanoramaResponse struct {
 }
 
 type GetStatusPanoramaResponse struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
+	Rows    int    `json:"rows"`
+	Columns int    `json:"columns"`
 }
 
 type GetSASUrlResponse struct {

@@ -31,7 +31,7 @@ export function createPanoramaSlice(input: PanoramaSliceInput) {
 }
 
 export function getPanoramaStatus(jobId: string) {
-  return requestJson<{ status: string }>(`/panorama/status?job-id=${encodeURIComponent(jobId)}`)
+  return requestJson<{ status: string, columns: number, rows: number }>(`/panorama/status?job-id=${encodeURIComponent(jobId)}`)
 }
 
 export function getPanoramaDownloads(jobId: string) {

@@ -105,14 +105,14 @@ export function CutterPage() {
 
     async function checkStatus() {
       try {
-        const { status } = await getPanoramaStatus(activeJobId)
+        const { status, columns } = await getPanoramaStatus(activeJobId)
         if (cancelled) return
 
         if (status === 'Completed') {
           const { urlsSAS } = await getPanoramaDownloads(activeJobId)
           if (cancelled) return
           setDownloadUrls(urlsSAS)
-          setDownloadColumns(parsedColumns)
+          setDownloadColumns(columns)
           setJobState('completed')
           return
         }

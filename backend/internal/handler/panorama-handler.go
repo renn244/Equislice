@@ -103,7 +103,9 @@ func (h *PanoramaHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.WriteJson[dto.GetStatusPanoramaResponse](w, http.StatusOK, dto.GetStatusPanoramaResponse{
-		Status: data.Status,
+		Status:  data.Status,
+		Columns: data.Column,
+		Rows:    data.Row,
 	})
 }
 
