@@ -113,7 +113,6 @@ export function CutterPage() {
           if (cancelled) return
           setDownloadUrls(urlsSAS)
           setDownloadColumns(parsedColumns)
-          setDownloadRows(parsedRows)
           setJobState('completed')
           return
         }
