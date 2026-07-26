@@ -14,8 +14,8 @@ import {
   getPanoramaDownloads,
   getPanoramaStatus,
 } from '../lib/panorama-api'
-import { PanoramaPreview } from './panorama-preview'
 import './cutter-page.css'
+import { PanoramaPreview } from './panorama-preview'
 
 type ImageDimensions = {
   height: number
@@ -74,7 +74,9 @@ export function CutterPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [rows, setRows] = useState('3')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
   const [downloadUrls, setDownloadUrls] = useState<string[]>([])
+  const [downloadColumns, setDownloadColumns] = useState<number | null>(null)
 
   const validGrid = isValidGridValue(columns) && isValidGridValue(rows)
   const parsedColumns = validGrid ? Number(columns) : null
@@ -82,7 +84,7 @@ export function CutterPage() {
   const tileCount = validGrid ? Number(columns) * Number(rows) : null
   const gridError = columns !== '' && rows !== '' && !validGrid
   const tileGridStyle = validGrid
-    ? ({ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } as CSSProperties)
+    ? ({ gridTemplateColumns: `repeat(${downloadColumns}, minmax(0, 1fr))` } as CSSProperties)
     : undefined
   const isWorking = jobState === 'submitting' || jobState === 'queued' || jobState === 'processing'
   const workflowIndex = getWorkflowIndex(jobState)
@@ -110,6 +112,8 @@ export function CutterPage() {
           const { urlsSAS } = await getPanoramaDownloads(activeJobId)
           if (cancelled) return
           setDownloadUrls(urlsSAS)
+          setDownloadColumns(parsedColumns)
+          setDownloadRows(parsedRows)
           setJobState('completed')
           return
         }
