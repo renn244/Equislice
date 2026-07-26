@@ -1,4 +1,3 @@
-import { UploadIcon } from '@primer/octicons-react'
 import type { CSSProperties, ChangeEventHandler } from 'react'
 
 type PanoramaPreviewProps = {
@@ -7,6 +6,7 @@ type PanoramaPreviewProps = {
   fileName: string | null
   onFileChange: ChangeEventHandler<HTMLInputElement>
   previewUrl: string | null
+  processing?: boolean
   rows: number | null
 }
 
@@ -21,6 +21,7 @@ export function PanoramaPreview({
   fileName,
   onFileChange,
   previewUrl,
+  processing = false,
   rows,
 }: PanoramaPreviewProps) {
   const hasValidGrid = columns !== null && rows !== null
@@ -29,12 +30,12 @@ export function PanoramaPreview({
     : {}
 
   return (
-    <div className={`panorama-preview${previewUrl ? ' panorama-preview-selected' : ''}`}>
+    <div className={`panorama-preview${previewUrl ? ' panorama-preview-selected' : ''}${processing ? ' is-processing' : ''}`}>
       <label className="panorama-input-label" htmlFor="panorama-image">
         Panorama image
       </label>
       <input
-        accept="image/*"
+        accept="image/jpeg,image/png"
         aria-describedby={errorId}
         className="panorama-input"
         id="panorama-image"
@@ -51,19 +52,37 @@ export function PanoramaPreview({
             src={previewUrl}
           />
           {hasValidGrid && (
-            <div
-              aria-hidden="true"
-              className="panorama-preview-grid"
-              data-testid="panorama-grid"
-              style={gridStyle}
-            />
+            <>
+              <div
+                aria-hidden="true"
+                className="panorama-preview-grid"
+                data-testid="panorama-grid"
+                style={gridStyle}
+              />
+              <div
+                aria-hidden="true"
+                className="panorama-column-labels"
+                style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+              >
+                {Array.from({ length: columns }, (_, index) => (
+                  <span key={index}>{String.fromCharCode(65 + (index % 26))}</span>
+                ))}
+              </div>
+              <div
+                aria-hidden="true"
+                className="panorama-row-labels"
+                style={{ gridTemplateRows: `repeat(${rows}, 1fr)` }}
+              >
+                {Array.from({ length: rows }, (_, index) => <span key={index}>{index + 1}</span>)}
+              </div>
+              {processing && <div aria-hidden="true" className="panorama-processing-line" />}
+            </>
           )}
         </>
       ) : (
         <label className="panorama-empty" htmlFor="panorama-image">
-          <UploadIcon aria-hidden="true" size={30} />
           <strong>Upload a panorama</strong>
-          <span>Choose a browser-readable JPG, PNG, WebP, or other image.</span>
+          <span>Choose a JPG or PNG.</span>
         </label>
       )}
     </div>

@@ -5,10 +5,11 @@ import { describe, expect, it } from 'vitest'
 const cutterStyles = readFileSync(resolve(process.cwd(), 'src/pages/cutter-page.css'), 'utf8')
 
 describe('cutter page styles', () => {
-  it('uses the landing page design tokens instead of a separate dark palette', () => {
-    expect(cutterStyles).toContain('background: var(--eq-canvas)')
+  it('uses the shared Precision Instrument tokens instead of a separate palette', () => {
     expect(cutterStyles).toContain('color: var(--eq-ink)')
-    expect(cutterStyles).toContain('background: var(--eq-surface)')
+    expect(cutterStyles).toContain('var(--eq-teal)')
+    expect(cutterStyles).toContain('var(--eq-amber)')
+    expect(cutterStyles).toContain('var(--eq-canvas)')
     expect(cutterStyles).not.toContain('--cutter-night')
   })
 })
