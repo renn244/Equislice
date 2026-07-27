@@ -4,10 +4,13 @@ import (
 	"backend/internal/dto"
 	"backend/internal/services"
 	"backend/internal/util"
-	"errors"
+	"encoding/json"
 	"net/http"
-	"strconv"
+
+	"github.com/go-playground/validator/v10"
 )
+
+var validate = validator.New()
 
 type PanoramaHandler struct {
 	PanoramaService *services.PanoramaService
@@ -20,64 +23,26 @@ func NewPanoramaHandler(panoramaService *services.PanoramaService) *PanoramaHand
 }
 
 func (h *PanoramaHandler) PostPanorama(w http.ResponseWriter, r *http.Request) {
-	const maxUploadSize = 50 << 20 // 50 MB
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+	var body dto.PostPanoramaRequest
 
-	err := r.ParseMultipartForm(32 << 20) // 32 MB
+	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
-		_, isMaxByte := errors.AsType[*http.MaxBytesError](err)
-		if isMaxByte {
-			util.WriteError(w, http.StatusRequestEntityTooLarge, "uploaded file is too large")
-			return
-		}
-
-		util.WriteError(w, http.StatusBadRequest, "invalid multipart form")
+		util.WriteError(w, http.StatusUnprocessableEntity, "Failed to decode request body")
 		return
 	}
 
-	row := r.FormValue("rows")
-	rowInt, err := strconv.Atoi(row)
+	err = validate.Struct(&body)
 	if err != nil {
-		util.WriteError(w, http.StatusBadRequest, "invalid rows")
-		return
-	}
-	if rowInt <= 0 {
-		util.WriteError(w, http.StatusBadRequest, "invalid rows")
-		return
-	}
-
-	column := r.FormValue("columns")
-	columnInt, err := strconv.Atoi(column)
-	if err != nil {
-		util.WriteError(w, http.StatusBadRequest, "invalid columns")
-		return
-	}
-	if columnInt <= 0 {
-		util.WriteError(w, http.StatusBadRequest, "invalid columns")
-		return
-	}
-
-	fileFormat := r.FormValue("fileFormat")
-
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		util.WriteError(w, http.StatusBadRequest, "invalid file")
-		return
-	}
-	defer file.Close()
-
-	if header.Header.Get("Content-Type") != "image/jpeg" && header.Header.Get("Content-Type") != "image/png" {
-		util.WriteError(w, http.StatusBadRequest, "invalid image format")
+		util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
 	jobId, err := h.PanoramaService.PostPanorama(
 		r.Context(),
-		header.Filename,
-		file,
-		rowInt,
-		columnInt,
-		fileFormat,
+		body.File,
+		body.Rows,
+		body.Columns,
+		body.FileFormats,
 	)
 	if err != nil {
 		util.WriteError(w, http.StatusInternalServerError, "error post panorama slice")
@@ -106,6 +71,33 @@ func (h *PanoramaHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 		Status:  data.Status,
 		Columns: data.Column,
 		Rows:    data.Row,
+	})
+}
+
+func (h *PanoramaHandler) GetUploadUrl(w http.ResponseWriter, r *http.Request) {
+	var body dto.GetUploadUrlRequest
+
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		util.WriteError(w, http.StatusUnprocessableEntity, "invalid request body")
+		return
+	}
+
+	err = validate.Struct(body)
+	if err != nil {
+		util.WriteError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	uploadUrl, blobName, err := h.PanoramaService.GetUploadUrl(r.Context(), body.FileName, body.ContentType)
+	if err != nil {
+		util.WriteError(w, http.StatusInternalServerError, "error getting upload url")
+		return
+	}
+
+	util.WriteJson[dto.GetUploadUrlResponse](w, http.StatusOK, dto.GetUploadUrlResponse{
+		UrlSAS:   uploadUrl,
+		BlobName: blobName,
 	})
 }
 

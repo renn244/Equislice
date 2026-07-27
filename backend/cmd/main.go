@@ -94,6 +94,7 @@ func main() {
 	})
 
 	r.Post("/api/panorama/slice", panoramaHandler.PostPanorama)
+	r.Post("/api/panorama/upload", panoramaHandler.GetUploadUrl)
 	r.Get("/api/panorama/status", panoramaHandler.GetStatus)
 	r.Get("/api/panorama/download", panoramaHandler.GetShareUrl)
 	r.Get("/api/panorama/download-all", panoramaHandler.GetArchive)

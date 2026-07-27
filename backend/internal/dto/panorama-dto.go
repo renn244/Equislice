@@ -14,11 +14,11 @@ type PanoramaQueueMessage struct {
 	JobId string `json:"job_id"`
 }
 
-type PostPanorama struct {
-	PanoramaImage string `json:"panorama_image"`
-	Rows          int    `json:"rows"`
-	Columns       int    `json:"columns"`
-	FileFormats   string `json:"file_formats"`
+type PostPanoramaRequest struct {
+	File        string `json:"file" binding:"required"`
+	Rows        int    `json:"rows" validate:"required,min=1"`
+	Columns     int    `json:"columns" validate:"required,min=1"`
+	FileFormats string `json:"file_formats" validate:"required"`
 }
 
 type PostPanoramaResponse struct {
@@ -29,6 +29,16 @@ type GetStatusPanoramaResponse struct {
 	Status  string `json:"status"`
 	Rows    int    `json:"rows"`
 	Columns int    `json:"columns"`
+}
+
+type GetUploadUrlRequest struct {
+	FileName    string `json:"file_name" validate:"required"`
+	ContentType string `json:"content_type" validate:"required"`
+}
+
+type GetUploadUrlResponse struct {
+	UrlSAS   string `json:"urlSAS"`
+	BlobName string `json:"blobName"`
 }
 
 type GetSASUrlResponse struct {

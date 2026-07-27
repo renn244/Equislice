@@ -6,11 +6,16 @@ import { router } from './router'
 
 vi.mock('./lib/panorama-api', () => ({
   createPanoramaSlice: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
+  getPanoaramaUploadUrl: vi.fn().mockResolvedValue({
+    urlSAS: 'https://blob.example/upload',
+    blobName: 'blob-1-living-room.jpg',
+  }),
   getPanoramaStatus: vi.fn().mockResolvedValue({ status: 'Completed' }),
   getPanoramaDownloads: vi.fn().mockResolvedValue({ urlsSAS: ['https://tiles.example/0.jpg'] }),
   getPanoramaArchiveUrl: vi.fn(
     (jobId: string) => `https://api.example/panorama/download-all?job-id=${jobId}`,
   ),
+  uploadToBlob: vi.fn().mockResolvedValue(undefined),
 }))
 
 function stubReadableImage() {

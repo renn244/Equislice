@@ -4,14 +4,16 @@ import (
 	"archive/zip"
 	"backend/internal/dto"
 	"backend/internal/ports"
+	"backend/internal/util/constants"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"mime/multipart"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,32 +37,23 @@ func NewPanoramaService(
 	}
 }
 
-func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName string, panoramaFile multipart.File, row int, column int, fileFormats string) (string, error) {
+func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName string, row int, column int, fileFormats string) (string, error) {
 	v4, err := uuid.NewRandom()
 	if err != nil {
 		return "", errors.New("failed to generate v4 uuid")
 	}
 
 	jobId := v4.String()
-	fileName := jobId + "-" + filepath.Base(panoramaFileName)
 
-	// upload the blob storage
-	err = s.PanoramaStorage.Upload(ctx, fileName, panoramaFile)
-	if err != nil {
-		return "", errors.New("failed to upload file")
-	}
-
-	// insert data into the table
 	_, err = s.DB.Insert(ctx, dto.PanoramaEntity{
 		JobId:             jobId,
-		InitialPanoramaId: fileName,
+		InitialPanoramaId: panoramaFileName,
 		Status:            "Queued",
 		Row:               row,
 		Column:            column,
 		FileFormat:        fileFormats,
 	}, &jobId)
 	if err != nil {
-		s.PanoramaStorage.DeleteFile(ctx, fileName)
 		return "", errors.New("failed to add entity")
 	}
 
@@ -69,15 +62,12 @@ func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName str
 	})
 	if err != nil {
 		s.DB.Delete(ctx, jobId)
-		s.PanoramaStorage.DeleteFile(ctx, fileName)
 		return "", errors.New("failed to add queue")
 	}
 
-	// Enqueue the job
 	_, err = s.Queue.Enqueue(ctx, string(JobQueueMessage))
 	if err != nil {
 		s.DB.Delete(ctx, jobId)
-		s.PanoramaStorage.DeleteFile(ctx, fileName)
 		return "", errors.New("failed to enqueue message")
 	}
 
@@ -91,6 +81,36 @@ func (s *PanoramaService) GetStatus(ctx context.Context, jobId string) (*dto.Pan
 	}
 
 	return &body, nil
+}
+
+func (s *PanoramaService) GetUploadUrl(ctx context.Context, fileName string, contentType string) (string, string, error) {
+	ext := filepath.Ext(fileName)
+	if ext == "" {
+		return "", "", errors.New("file extension required")
+	}
+	ext = strings.ToLower(strings.TrimPrefix(ext, "."))
+
+	if !slices.Contains(constants.ValidContentTypeList, contentType) {
+		return "", "", errors.New("invalid content type")
+	}
+	if ext != "jpg" && ext != "jpeg" && ext != "png" {
+		return "", "", errors.New("invalid content type")
+	}
+
+	v4, err := uuid.NewRandom()
+	if err != nil {
+		return "", "", errors.New("failed to generate v4 uuid")
+	}
+
+	blobName := v4.String() + "-" + fileName
+	duration := time.Hour * 1
+
+	uploadUrl, err := s.PanoramaStorage.GenerateUploadUrl(ctx, blobName, contentType, duration)
+	if err != nil {
+		return "", "", errors.New("failed to generate upload url")
+	}
+
+	return uploadUrl, blobName, nil
 }
 
 func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]string, error) {

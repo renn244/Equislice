@@ -9,10 +9,10 @@ import {
 import { useEffect, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { SiteHeader } from '../components/site-header'
 import {
-  createPanoramaSlice,
+  createPanoramaSlice, getPanoaramaUploadUrl,
   getPanoramaArchiveUrl,
   getPanoramaDownloads,
-  getPanoramaStatus,
+  getPanoramaStatus, uploadToBlob,
 } from '../lib/panorama-api'
 import './cutter-page.css'
 import { PanoramaPreview } from './panorama-preview'
@@ -202,11 +202,14 @@ export function CutterPage() {
     setJobState('submitting')
 
     try {
+      const { urlSAS, blobName } = await getPanoaramaUploadUrl(selectedFile.name, selectedFile.type)
+      await uploadToBlob(urlSAS, selectedFile)
+
       const { jobId: createdJobId } = await createPanoramaSlice({
-        file: selectedFile,
+        file: blobName,
         rows: Number(rows),
         columns: Number(columns),
-        fileFormat: 'jpg',
+        file_formats: 'jpg',
       })
 
       setJobId(createdJobId)
