@@ -6,6 +6,7 @@ import {
   UploadIcon,
   XIcon,
 } from '@primer/octicons-react'
+import * as Sentry from '@sentry/react'
 import { useEffect, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { SiteHeader } from '../components/site-header'
 import {
@@ -115,12 +116,14 @@ export function CutterPage() {
           setDownloadUrls(urlsSAS)
           setDownloadColumns(columns)
           setJobState('completed')
+          Sentry.metrics.count('equislice.panorama_slice.completed')
           return
         }
 
         if (status === 'Failed') {
           setJobError('The tile set processing failed. Please try again with a different image.')
           setJobState('failed')
+          Sentry.metrics.count('equislice.panorama_slice.failed')
           return
         }
 
@@ -129,6 +132,7 @@ export function CutterPage() {
         if (cancelled) return
         setJobError('We could not check this tile set. Please try again.')
         setJobState('failed')
+        Sentry.metrics.count('equislice.panorama_status_check.failed')
       }
     }
 
@@ -208,6 +212,14 @@ export function CutterPage() {
     setJobId(null)
     setJobState('submitting')
 
+    Sentry.metrics.count('equislice.panorama_slice.started')
+    Sentry.logger.info('Panorama slicing started', {
+      attributes: {
+        'panorama.columns': Number(columns),
+        'panorama.rows': Number(rows),
+      },
+    })
+
     try {
       const { urlSAS, blobName } = await getPanoaramaUploadUrl(selectedFile.name, selectedFile.type)
       await uploadToBlob(urlSAS, selectedFile)
@@ -225,6 +237,9 @@ export function CutterPage() {
     } catch {
       setJobError('We could not create this tile set. Please try again.')
       setJobState('failed')
+
+      Sentry.metrics.count('equislice.panorama_slice.submit_failed')
+      Sentry.logger.error('Panorama slicing submission failed')
     }
   }
 
