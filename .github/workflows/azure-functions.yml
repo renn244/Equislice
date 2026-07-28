@@ -57,6 +57,7 @@ jobs:
 
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - name: Check out repo
@@ -78,9 +79,15 @@ jobs:
           cd package
           zip -r ../function.zip app host.json
 
+      - name: Login to Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Deploy Function App package
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
           package: azure-functions/function.zip
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
