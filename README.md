@@ -1,6 +1,6 @@
 # EquiSlice
 
-EquiSlice turns an equirectangular panorama into an evenly sized grid of JPEG tiles. The browser uploads the image to a local Go API; the API writes the job to Azure Storage; and an Azure Queue-triggered Function generates the tiles.
+EquiSlice turns an equirectangular panorama into an evenly sized grid of JPEG tiles. The browser asks the Go API for a short-lived, write-only Azure Blob SAS URL, uploads the image directly to Blob Storage, then submits the uploaded blob name as a slicing job. The API records and queues that job, and an Azure Queue-triggered Function generates the tiles.
 
 ![Home Page](docs/website/homepage.png)
 
@@ -19,6 +19,8 @@ EquiSlice turns an equirectangular panorama into an evenly sized grid of JPEG ti
 
 ![Submit panorama job](docs/architecture/01-submit-panorama-job.png)
 
+The upload is deliberately split into two API calls: `POST /api/panorama/upload` returns a blob-specific upload SAS URL and blob name; the browser uploads the image directly to that URL; then `POST /api/panorama/slice` creates the job from the blob name and grid settings. The Go API never proxies the panorama bytes.
+
 ### 2. Process the queued job
 
 ![Process queued job](docs/architecture/02-process-queued-job.png)
@@ -30,6 +32,14 @@ EquiSlice turns an equirectangular panorama into an evenly sized grid of JPEG ti
 ### 4. Retrieve completed tiles
 
 ![Retrieve completed tiles](docs/architecture/04-retrieve-completed-tiles.png)
+
+### 5. Individual tile retrieval
+
+![Individual tile retrieval](docs/architecture/05-individual-tile-retrieval.png)
+
+### 6. Upload source panorama
+
+![Upload source panorama](docs/architecture/06-upload-source-panorama.png)
 
 The frontend calls the local backend directly at `http://localhost:3000/api`; there is no development proxy.
 
@@ -81,7 +91,8 @@ The cutter saves the most recent panorama job UUID in browser `localStorage`. Re
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Health check |
-| `POST` | `/api/panorama/slice` | Creates a panorama slicing job; multipart fields: `file`, `rows`, `columns`, `fileFormat` |
+| `POST` | `/api/panorama/upload` | Returns a short-lived, write-only Blob SAS URL and generated source blob name for a JPG or PNG upload |
+| `POST` | `/api/panorama/slice` | Creates a panorama slicing job from JSON: `file` (the uploaded blob name), `rows`, `columns`, and `file_formats` |
 | `GET` | `/api/panorama/status?job-id=<uuid>` | Returns the job status |
 | `GET` | `/api/panorama/download?job-id=<uuid>` | Returns download URLs when processing is complete |
 | `GET` | `/api/panorama/download-all?job-id=<uuid>` | Downloads all completed tiles as one ZIP archive |
