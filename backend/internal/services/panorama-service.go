@@ -131,7 +131,7 @@ func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]stri
 
 	for i := range body.Row {
 		for j := range body.Column {
-			blobName := *body.PanoramaSliceId + "_" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
+			blobName := *body.PanoramaSliceId + "\\" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
 
 			var sasUrl string
 			sasUrl, err = s.PanoramaSliceStorage.GenerateShareUrl(ctx, blobName, 1*time.Hour)
@@ -161,7 +161,7 @@ func (s *PanoramaService) GetArchive(ctx context.Context, jobId string) ([]byte,
 
 	for i := range body.Row {
 		for j := range body.Column {
-			blobName := *body.PanoramaSliceId + "_" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
+			blobName := *body.PanoramaSliceId + "\\" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
 			tileName := fmt.Sprintf("tile_r%02d_c%02d.jpg", i+1, j+1)
 
 			tileWriter, createErr := zipWriter.Create(tileName)

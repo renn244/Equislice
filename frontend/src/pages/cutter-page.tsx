@@ -47,7 +47,6 @@ const workflowStates: { key: JobState; label: string }[] = [
   { key: 'queued', label: 'Queued' },
   { key: 'processing', label: 'Slicing' },
   { key: 'completed', label: 'Complete' },
-  { key: 'failed', label: 'Failed' },
 ]
 
 function isValidGridValue(value: string) {
@@ -109,6 +108,7 @@ export function CutterPage() {
       try {
         const { status, columns } = await getPanoramaStatus(activeJobId)
         if (cancelled) return
+        setJobError(null)
 
         if (status === 'Completed') {
           const { urlsSAS } = await getPanoramaDownloads(activeJobId)
@@ -131,7 +131,6 @@ export function CutterPage() {
       } catch {
         if (cancelled) return
         setJobError('We could not check this tile set. Please try again.')
-        setJobState('failed')
         Sentry.metrics.count('equislice.panorama_status_check.failed')
       }
     }
