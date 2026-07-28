@@ -313,16 +313,14 @@
 .panorama-preview {
   position: relative;
   overflow: visible;
-  aspect-ratio: 2.6 / 1;
   background: var(--eq-canvas-deep);
 }
 
 .panorama-preview-image {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
   border-radius: 3px;
-  object-fit: cover;
 }
 
 .panorama-preview-grid {
@@ -605,8 +603,7 @@
 }
 
 .job-panel {
-  max-width: 900px;
-  margin: 22px auto 0;
+  margin: 22px 0 0;
   padding: 26px;
   border: 1px solid var(--eq-line);
   border-radius: 6px;
