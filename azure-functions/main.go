@@ -29,6 +29,11 @@ func main() {
 		sdk.WithConnection("AzureWebJobsStorage"),
 	)
 
+	app.Queue("processFailedPanoramaSliced", processFailedPanoramaSlicedHandler,
+		sdk.WithQueueName("panorama-slice-poison"),
+		sdk.WithConnection("AzureWebJobsStorage"),
+	)
+
 	worker.Start(app)
 }
 
@@ -74,12 +79,8 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 		return err
 	}
 
-	// update and get entity
 	err = updateStatusJobEntity(ctx, panoramaTable, body.JobId, "Processing", nil)
 	if err != nil {
-		// handle when entity does not exist
-		// handle update entity
-
 		return err
 	}
 
@@ -131,6 +132,33 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 	}
 
 	err = updateStatusJobEntity(ctx, panoramaTable, body.JobId, "Completed", &panoramaEntity.JobId)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func processFailedPanoramaSlicedHandler(ctx context.Context, msg bindings.QueueMessage) error {
+	logQueueItem(ctx, msg)
+
+	var body PanoramaSliceBody
+
+	err := json.Unmarshal(msg.Body, &body)
+	if err != nil {
+		slog.InfoContext(ctx, "Error unmarshalling panorama body", "body", string(msg.Body))
+		return err
+	}
+
+	connectionString := os.Getenv("EQUISLICE_STORAGE_CONNECTION_STRING")
+
+	panoramaTable, err := createTableInstance("Panorama", connectionString)
+	if err != nil {
+		slog.InfoContext(ctx, "Error creating table instance", "error:", err)
+		return err
+	}
+
+	err = updateStatusJobEntity(ctx, panoramaTable, body.JobId, "Failed", &body.JobId)
 	if err != nil {
 		return err
 	}

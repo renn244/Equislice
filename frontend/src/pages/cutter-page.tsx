@@ -46,6 +46,7 @@ const workflowStates: { key: JobState; label: string }[] = [
   { key: 'queued', label: 'Queued' },
   { key: 'processing', label: 'Slicing' },
   { key: 'completed', label: 'Complete' },
+  { key: 'failed', label: 'Failed' },
 ]
 
 function isValidGridValue(value: string) {
@@ -114,6 +115,12 @@ export function CutterPage() {
           setDownloadUrls(urlsSAS)
           setDownloadColumns(columns)
           setJobState('completed')
+          return
+        }
+
+        if (status === 'Failed') {
+          setJobError('The tile set processing failed. Please try again with a different image.')
+          setJobState('failed')
           return
         }
 

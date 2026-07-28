@@ -1,0 +1,86 @@
+name: azure-functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - azure-functions/**
+      - .github/workflows/azure-functions.yml
+
+  pull_request:
+    paths:
+      - azure-functions/**
+      - .github/workflows/azure-functions.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+
+      - name: Set up go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: azure-functions/go.mod
+          cache-dependency-path: azure-functions/go.sum
+
+      - name: Verify Dependencies
+        run: go mod verify
+        working-directory: azure-functions
+
+      - name: Run Linter
+        run: go vet ./...
+        working-directory: azure-functions
+
+      - name: Run Tests
+        run: go test ./...
+        working-directory: azure-functions
+
+      - name: Build Function
+        run: GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build ./...
+        working-directory: azure-functions
+
+  deploy:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: azure-functions/go.mod
+          cache-dependency-path: azure-functions/go.sum
+
+      - name: Build deployment package
+        working-directory: azure-functions
+        run: |
+          mkdir package
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o package/app .
+          cp host.json package/host.json
+          chmod +x package/app
+          cd package
+          zip -r ../function.zip app host.json
+
+      - name: Deploy Function App package
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+          package: azure-functions/function.zip
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
