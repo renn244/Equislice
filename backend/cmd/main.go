@@ -11,9 +11,12 @@ import (
 	"backend/internal/util/constants"
 	"encoding/json"
 	"fmt"
-
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -27,6 +30,21 @@ func main() {
 
 	cfg := config.Load()
 
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              cfg.SentryDSN,
+		Environment:      cfg.SentryEnvironment,
+		EnableTracing:    true,
+		TracesSampleRate: 0.2,
+		SendDefaultPII:   false,
+	}); err != nil {
+		fmt.Printf("Sentry initialization failed:  %v\n", err)
+		return
+	}
+	defer sentry.Flush(2 * time.Second)
+
+	r.Use(sentryhttp.New(sentryhttp.Options{
+		Repanic: true,
+	}).Handle)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendUrl},
 		AllowCredentials: true,
@@ -40,6 +58,7 @@ func main() {
 		Container:        constants.Container.Equirectangular,
 	})
 	if err != nil {
+		sentry.CaptureException(err)
 		fmt.Println(err)
 		return
 	}
@@ -49,6 +68,7 @@ func main() {
 		Container:        constants.Container.EquirectangularSlice,
 	})
 	if err != nil {
+		sentry.CaptureException(err)
 		fmt.Println(err)
 		return
 	}
@@ -58,6 +78,7 @@ func main() {
 		Queue:            constants.Queue.PanoramaSlice,
 	})
 	if err != nil {
+		sentry.CaptureException(err)
 		fmt.Println(err)
 		return
 	}
@@ -67,6 +88,7 @@ func main() {
 		Table:            constants.Table.Panorama,
 	})
 	if err != nil {
+		sentry.CaptureException(err)
 		fmt.Println(err)
 		return
 	}
@@ -102,6 +124,7 @@ func main() {
 	log.Println("Server is Running on http://localhost:3000")
 	err = http.ListenAndServe(":3000", r)
 	if err != nil {
+		sentry.CaptureException(err)
 		log.Fatal(err)
 	}
 }

@@ -26,6 +26,12 @@ type PanoramaService struct {
 	Queue                ports.QueueService
 }
 
+var (
+	ErrFileExtensionRequired = errors.New("file extension required")
+	ErrInvalidContentType    = errors.New("invalid content type")
+	ErrJobNotComplete        = errors.New("job not complete")
+)
+
 func NewPanoramaService(
 	panoramaStorage ports.FileService, panoramaSliceStorage ports.FileService, db ports.DBService[dto.PanoramaEntity], queue ports.QueueService,
 ) *PanoramaService {
@@ -40,7 +46,7 @@ func NewPanoramaService(
 func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName string, row int, column int, fileFormats string) (string, error) {
 	v4, err := uuid.NewRandom()
 	if err != nil {
-		return "", errors.New("failed to generate v4 uuid")
+		return "", fmt.Errorf("failed to generate v4 uuid: %w", err)
 	}
 
 	jobId := v4.String()
@@ -54,7 +60,7 @@ func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName str
 		FileFormat:        fileFormats,
 	}, &jobId)
 	if err != nil {
-		return "", errors.New("failed to add entity")
+		return "", fmt.Errorf("failed to add entity: %w", err)
 	}
 
 	JobQueueMessage, err := json.Marshal(dto.PanoramaQueueMessage{
@@ -62,13 +68,13 @@ func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName str
 	})
 	if err != nil {
 		s.DB.Delete(ctx, jobId)
-		return "", errors.New("failed to add queue")
+		return "", fmt.Errorf("failed to serialize queue message: %w", err)
 	}
 
 	_, err = s.Queue.Enqueue(ctx, string(JobQueueMessage))
 	if err != nil {
 		s.DB.Delete(ctx, jobId)
-		return "", errors.New("failed to enqueue message")
+		return "", fmt.Errorf("failed to enqueue message: %w", err)
 	}
 
 	return jobId, nil
@@ -77,7 +83,7 @@ func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName str
 func (s *PanoramaService) GetStatus(ctx context.Context, jobId string) (*dto.PanoramaEntity, error) {
 	body, err := s.DB.Find(ctx, jobId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get job status: %w", err)
 	}
 
 	return &body, nil
@@ -86,20 +92,20 @@ func (s *PanoramaService) GetStatus(ctx context.Context, jobId string) (*dto.Pan
 func (s *PanoramaService) GetUploadUrl(ctx context.Context, fileName string, contentType string) (string, string, error) {
 	ext := filepath.Ext(fileName)
 	if ext == "" {
-		return "", "", errors.New("file extension required")
+		return "", "", ErrFileExtensionRequired
 	}
 	ext = strings.ToLower(strings.TrimPrefix(ext, "."))
 
 	if !slices.Contains(constants.ValidContentTypeList, contentType) {
-		return "", "", errors.New("invalid content type")
+		return "", "", ErrInvalidContentType
 	}
 	if ext != "jpg" && ext != "jpeg" && ext != "png" {
-		return "", "", errors.New("invalid content type")
+		return "", "", ErrInvalidContentType
 	}
 
 	v4, err := uuid.NewRandom()
 	if err != nil {
-		return "", "", errors.New("failed to generate v4 uuid")
+		return "", "", fmt.Errorf("failed to generate v4 uuid: %w", err)
 	}
 
 	blobName := v4.String() + "-" + fileName
@@ -107,7 +113,7 @@ func (s *PanoramaService) GetUploadUrl(ctx context.Context, fileName string, con
 
 	uploadUrl, err := s.PanoramaStorage.GenerateUploadUrl(ctx, blobName, contentType, duration)
 	if err != nil {
-		return "", "", errors.New("failed to generate upload url")
+		return "", "", fmt.Errorf("failed to generate upload url: %w", err)
 	}
 
 	return uploadUrl, blobName, nil
@@ -116,15 +122,15 @@ func (s *PanoramaService) GetUploadUrl(ctx context.Context, fileName string, con
 func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]string, error) {
 	body, err := s.DB.Find(ctx, jobId)
 	if err != nil {
-		return nil, errors.New("failed to find job")
+		return nil, fmt.Errorf("failed to find job: %w", err)
 	}
 
 	if body.Status != "Completed" {
-		return nil, errors.New("not yet complete")
+		return nil, ErrJobNotComplete
 	}
 
 	if body.PanoramaSliceId == nil {
-		return nil, errors.New("not yet complete")
+		return nil, ErrJobNotComplete
 	}
 
 	var sasUrls []string
@@ -149,11 +155,11 @@ func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]stri
 func (s *PanoramaService) GetArchive(ctx context.Context, jobId string) ([]byte, error) {
 	body, err := s.DB.Find(ctx, jobId)
 	if err != nil {
-		return nil, errors.New("failed to find job")
+		return nil, fmt.Errorf("failed to find job: %w", err)
 	}
 
 	if body.Status != "Completed" || body.PanoramaSliceId == nil {
-		return nil, errors.New("not yet complete")
+		return nil, ErrJobNotComplete
 	}
 
 	var archive bytes.Buffer
@@ -176,7 +182,7 @@ func (s *PanoramaService) GetArchive(ctx context.Context, jobId string) ([]byte,
 	}
 
 	if err = zipWriter.Close(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to close zip writer: %w", err)
 	}
 
 	return archive.Bytes(), nil

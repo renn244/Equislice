@@ -10,6 +10,8 @@ import (
 type Config struct {
 	AzureConnectionString string
 	FrontendUrl           string
+	SentryDSN             string
+	SentryEnvironment     string
 }
 
 func Load() Config {
@@ -21,6 +23,8 @@ func Load() Config {
 	return Config{
 		AzureConnectionString: getEnv("AZURE_CONNECTION_STRING", ""),
 		FrontendUrl:           getEnv("FRONTEND_URL", ""),
+		SentryDSN:             getEnv("SENTRY_DSN", ""),
+		SentryEnvironment:     getEnv("SENTRY_ENVIRONMENT", ""),
 	}
 }
 

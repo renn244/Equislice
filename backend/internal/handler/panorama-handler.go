@@ -5,6 +5,7 @@ import (
 	"backend/internal/services"
 	"backend/internal/util"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -45,6 +46,7 @@ func (h *PanoramaHandler) PostPanorama(w http.ResponseWriter, r *http.Request) {
 		body.FileFormats,
 	)
 	if err != nil {
+		util.CaptureSentryError(err, r.Context())
 		util.WriteError(w, http.StatusInternalServerError, "error post panorama slice")
 		return
 	}
@@ -63,6 +65,12 @@ func (h *PanoramaHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.PanoramaService.GetStatus(r.Context(), jobId)
 	if err != nil {
+		if errors.Is(err, services.ErrEntityNotFound) {
+			util.WriteError(w, http.StatusNotFound, "job not found")
+			return
+		}
+
+		util.CaptureSentryError(err, r.Context())
 		util.WriteError(w, http.StatusInternalServerError, "error getting job status")
 		return
 	}
@@ -91,6 +99,17 @@ func (h *PanoramaHandler) GetUploadUrl(w http.ResponseWriter, r *http.Request) {
 
 	uploadUrl, blobName, err := h.PanoramaService.GetUploadUrl(r.Context(), body.FileName, body.ContentType)
 	if err != nil {
+		if errors.Is(err, services.ErrInvalidContentType) {
+			util.WriteError(w, http.StatusBadRequest, "invalid content type")
+			return
+		}
+		if errors.Is(err, services.ErrFileExtensionRequired) {
+			util.CaptureSentryError(err, r.Context())
+			util.WriteError(w, http.StatusBadRequest, "file extension required")
+			return
+		}
+
+		util.CaptureSentryError(err, r.Context())
 		util.WriteError(w, http.StatusInternalServerError, "error getting upload url")
 		return
 	}
@@ -110,6 +129,16 @@ func (h *PanoramaHandler) GetShareUrl(w http.ResponseWriter, r *http.Request) {
 
 	sasUrls, err := h.PanoramaService.GetShareUrl(r.Context(), jobId)
 	if err != nil {
+		if errors.Is(err, services.ErrEntityNotFound) {
+			util.WriteError(w, http.StatusNotFound, "job not found")
+			return
+		}
+		if errors.Is(err, services.ErrJobNotComplete) {
+			util.WriteError(w, http.StatusConflict, "job not complete")
+			return
+		}
+
+		util.CaptureSentryError(err, r.Context())
 		util.WriteError(w, http.StatusInternalServerError, "error getting share url")
 		return
 	}
@@ -128,6 +157,16 @@ func (h *PanoramaHandler) GetArchive(w http.ResponseWriter, r *http.Request) {
 
 	archive, err := h.PanoramaService.GetArchive(r.Context(), jobId)
 	if err != nil {
+		if errors.Is(err, services.ErrEntityNotFound) {
+			util.WriteError(w, http.StatusNotFound, "job not found")
+			return
+		}
+		if errors.Is(err, services.ErrJobNotComplete) {
+			util.WriteError(w, http.StatusConflict, "job not complete")
+			return
+		}
+
+		util.CaptureSentryError(err, r.Context())
 		util.WriteError(w, http.StatusInternalServerError, "error creating tile archive")
 		return
 	}
