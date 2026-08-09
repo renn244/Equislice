@@ -12,9 +12,11 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+	"github.com/getsentry/sentry-go"
 
 	"github.com/azure/azure-functions-golang-worker/sdk"
 	"github.com/azure/azure-functions-golang-worker/sdk/bindings"
@@ -23,6 +25,15 @@ import (
 
 func main() {
 	app := sdk.FunctionApp()
+
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:         os.Getenv("SENTRY_DSN"),
+		Environment: os.Getenv("SENTRY_ENVIRONMENT"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer sentry.Flush(2 * time.Second)
 
 	app.Queue("processPanoramaSlice", processPanoramaSliceHandler,
 		sdk.WithQueueName("panorama-slice"),
@@ -60,6 +71,8 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 
 	err := json.Unmarshal(msg.Body, &body)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		slog.InfoContext(ctx, "Error unmarshalling panorama body", "body", string(msg.Body))
 		return err
 	}
@@ -69,28 +82,38 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 	// instantiate instances
 	panoramaTable, err := createTableInstance("Panorama", connectionString)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		slog.InfoContext(ctx, "Error creating table instance", "error:", err)
 		return err
 	}
 
 	blobInstance, err := createBlobInstance(connectionString)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		slog.InfoContext(ctx, "Error creating blob instance", "error:", err)
 		return err
 	}
 
 	err = updateStatusJobEntity(ctx, panoramaTable, body.JobId, "Processing", nil)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		return err
 	}
 
 	panoramaEntity, err := getJobEntity(ctx, panoramaTable, body.JobId)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		return err
 	}
 
 	imageResponse, err := downloadBlobStream(ctx, blobInstance, "equirectangular", panoramaEntity.InitialPanoramaId)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		return err
 	}
 
@@ -98,10 +121,14 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 
 	config, _, err := image.DecodeConfig(panoramaImage)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		return err
 	}
 	img, _, err := image.Decode(bytes.NewReader(imageResponse))
 	if err != nil {
+		sentry.CaptureException(err)
+
 		return err
 	}
 
@@ -120,12 +147,16 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 
 			sliceBytes, err := cropSlice(x0, y0, x1, y1, img)
 			if err != nil {
+				sentry.CaptureException(err)
+
 				return err
 			}
 
 			blobName := panoramaEntity.JobId + "\\" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
 			_, err = uploadBlobStream(ctx, blobInstance, "equirectangular-slice", blobName, sliceBytes)
 			if err != nil {
+				sentry.CaptureException(err)
+
 				return err
 			}
 		}
@@ -133,6 +164,8 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 
 	err = updateStatusJobEntity(ctx, panoramaTable, body.JobId, "Completed", &panoramaEntity.JobId)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		return err
 	}
 
@@ -146,6 +179,8 @@ func processFailedPanoramaSlicedHandler(ctx context.Context, msg bindings.QueueM
 
 	err := json.Unmarshal(msg.Body, &body)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		slog.InfoContext(ctx, "Error unmarshalling panorama body", "body", string(msg.Body))
 		return err
 	}
@@ -154,12 +189,16 @@ func processFailedPanoramaSlicedHandler(ctx context.Context, msg bindings.QueueM
 
 	panoramaTable, err := createTableInstance("Panorama", connectionString)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		slog.InfoContext(ctx, "Error creating table instance", "error:", err)
 		return err
 	}
 
 	err = updateStatusJobEntity(ctx, panoramaTable, body.JobId, "Failed", &body.JobId)
 	if err != nil {
+		sentry.CaptureException(err)
+
 		return err
 	}
 
@@ -217,9 +256,12 @@ func updateStatusJobEntity(ctx context.Context, table *aztables.Client, jobId st
 			"panorama_slice_id": panoramaSliceId,
 		},
 	}
-	marshalledEntity, _ := json.Marshal(jobEntity)
+	marshalledEntity, err := json.Marshal(jobEntity)
+	if err != nil {
+		return err
+	}
 
-	_, err := table.UpdateEntity(ctx, marshalledEntity, nil)
+	_, err = table.UpdateEntity(ctx, marshalledEntity, nil)
 	if err != nil {
 		// handle when entity does not exist
 		// handle update entity
