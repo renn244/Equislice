@@ -8,6 +8,7 @@ type PanoramaEntity struct {
 	Row               int     `json:"row"`
 	Column            int     `json:"column"`
 	FileFormat        string  `json:"file_format"`
+	FileNameFormat    string  `json:"file_name_format"`
 }
 
 type PanoramaQueueMessage struct {
@@ -15,10 +16,11 @@ type PanoramaQueueMessage struct {
 }
 
 type PostPanoramaRequest struct {
-	File        string `json:"file" binding:"required"`
-	Rows        int    `json:"rows" validate:"required,min=1"`
-	Columns     int    `json:"columns" validate:"required,min=1"`
-	FileFormats string `json:"file_formats" validate:"required"`
+	File           string `json:"file" binding:"required"`
+	Rows           int    `json:"rows" validate:"required,min=1"`
+	Columns        int    `json:"columns" validate:"required,min=1"`
+	FileFormats    string `json:"file_formats" validate:"required"`
+	FileNameFormat string `json:"file_name_format"`
 }
 
 type PostPanoramaResponse struct {
@@ -41,6 +43,13 @@ type GetUploadUrlResponse struct {
 	BlobName string `json:"blobName"`
 }
 
+type TileDownload struct {
+	UrlSAS   string `json:"urlSAS"`
+	FileName string `json:"fileName"`
+	Row      int    `json:"row"`
+	Column   int    `json:"column"`
+}
+
 type GetSASUrlResponse struct {
-	UrlsSAS []string `json:"urlsSAS"`
+	Tiles []TileDownload `json:"tiles"`
 }

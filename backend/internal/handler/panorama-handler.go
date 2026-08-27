@@ -38,12 +38,19 @@ func (h *PanoramaHandler) PostPanorama(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isValid, err := util.ValidateFileNameFormat(body.FileNameFormat)
+	if isValid == false && err != nil {
+		util.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	jobId, err := h.PanoramaService.PostPanorama(
 		r.Context(),
 		body.File,
 		body.Rows,
 		body.Columns,
 		body.FileFormats,
+		body.FileNameFormat,
 	)
 	if err != nil {
 		util.CaptureSentryError(err, r.Context())
@@ -144,7 +151,7 @@ func (h *PanoramaHandler) GetShareUrl(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.WriteJson[dto.GetSASUrlResponse](w, http.StatusOK, dto.GetSASUrlResponse{
-		UrlsSAS: sasUrls,
+		Tiles: sasUrls,
 	})
 }
 

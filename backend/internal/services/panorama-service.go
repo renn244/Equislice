@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"backend/internal/dto"
 	"backend/internal/ports"
+	"backend/internal/util"
 	"backend/internal/util/constants"
 	"bytes"
 	"context"
@@ -43,7 +44,7 @@ func NewPanoramaService(
 	}
 }
 
-func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName string, row int, column int, fileFormats string) (string, error) {
+func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName string, row int, column int, fileFormats string, fileNameFormat string) (string, error) {
 	v4, err := uuid.NewRandom()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate v4 uuid: %w", err)
@@ -58,6 +59,7 @@ func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName str
 		Row:               row,
 		Column:            column,
 		FileFormat:        fileFormats,
+		FileNameFormat:    fileNameFormat,
 	}, &jobId)
 	if err != nil {
 		return "", fmt.Errorf("failed to add entity: %w", err)
@@ -119,7 +121,7 @@ func (s *PanoramaService) GetUploadUrl(ctx context.Context, fileName string, con
 	return uploadUrl, blobName, nil
 }
 
-func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]string, error) {
+func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]dto.TileDownload, error) {
 	body, err := s.DB.Find(ctx, jobId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find job: %w", err)
@@ -133,7 +135,7 @@ func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]stri
 		return nil, ErrJobNotComplete
 	}
 
-	var sasUrls []string
+	var tileDownloads []dto.TileDownload
 
 	for i := range body.Row {
 		for j := range body.Column {
@@ -145,11 +147,24 @@ func (s *PanoramaService) GetShareUrl(ctx context.Context, jobId string) ([]stri
 				return nil, err
 			}
 
-			sasUrls = append(sasUrls, sasUrl)
+			row := i + 1
+			col := j + 1
+
+			fileNameFormat, err := util.FormatFileName(body.FileNameFormat, row, col)
+			if err != nil {
+				return nil, err
+			}
+
+			tileDownloads = append(tileDownloads, dto.TileDownload{
+				UrlSAS:   sasUrl,
+				FileName: fileNameFormat + "." + body.FileFormat,
+				Row:      row,
+				Column:   col,
+			})
 		}
 	}
 
-	return sasUrls, nil
+	return tileDownloads, nil
 }
 
 func (s *PanoramaService) GetArchive(ctx context.Context, jobId string) ([]byte, error) {
@@ -168,14 +183,21 @@ func (s *PanoramaService) GetArchive(ctx context.Context, jobId string) ([]byte,
 	for i := range body.Row {
 		for j := range body.Column {
 			blobName := *body.PanoramaSliceId + "\\" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
-			tileName := fmt.Sprintf("tile_r%02d_c%02d.jpg", i+1, j+1)
 
-			tileWriter, createErr := zipWriter.Create(tileName)
+			tileName, err := util.FormatFileName(body.FileNameFormat, i+1, j+1)
+			if err != nil {
+				zipWriter.Close()
+				return nil, err
+			}
+
+			tileWriter, createErr := zipWriter.Create(tileName + "." + body.FileFormat)
 			if createErr != nil {
+				zipWriter.Close()
 				return nil, createErr
 			}
 
 			if downloadErr := s.PanoramaSliceStorage.Download(ctx, blobName, tileWriter); downloadErr != nil {
+				zipWriter.Close()
 				return nil, downloadErr
 			}
 		}
