@@ -533,6 +533,57 @@
   font-style: normal;
 }
 
+.file-name-template {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--eq-line);
+}
+
+.file-name-template label {
+  display: grid;
+  gap: 8px;
+}
+
+.file-name-template label > span {
+  color: var(--eq-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.file-name-template input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--eq-line);
+  border-radius: 4px;
+  background: #fbfaf6;
+  color: var(--eq-ink);
+  font-family: var(--eq-mono);
+  font-size: 13px;
+}
+
+.file-name-template input:focus {
+  border-color: var(--eq-teal);
+  outline: 2px solid rgba(35, 105, 99, 0.15);
+  outline-offset: 1px;
+}
+
+.file-name-template p {
+  margin: 8px 0 0;
+  color: var(--eq-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.file-name-template code {
+  color: var(--eq-teal);
+  font-family: var(--eq-mono);
+  font-size: 0.95em;
+}
+
+.file-name-template .file-name-preview {
+  color: var(--eq-ink);
+}
+
 .file-details dl {
   margin: 0;
 }
@@ -739,11 +790,15 @@
   background: var(--eq-line);
 }
 
-.cutter-tile-gallery a {
+.cutter-tile {
   position: relative;
   min-width: 0;
   overflow: hidden;
   background: var(--eq-ink);
+}
+
+.cutter-tile-gallery a {
+  display: block;
 }
 
 .cutter-tile-gallery img {
@@ -767,6 +822,35 @@
   font-family: var(--eq-mono);
   font-size: 8px;
   text-shadow: 0 1px 4px rgba(23, 21, 15, 0.85);
+}
+
+.tile-download-button {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 1px solid rgba(244, 241, 234, 0.72);
+  border-radius: 50%;
+  place-items: center;
+  background: rgba(23, 21, 15, 0.8);
+  color: var(--eq-canvas);
+  cursor: pointer;
+}
+
+.tile-download-button:hover:not(:disabled) {
+  background: var(--eq-teal);
+}
+
+.tile-download-button:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.tile-download-error {
+  margin-top: 12px;
 }
 
 .cutter-page button:focus-visible,

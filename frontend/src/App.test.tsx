@@ -11,7 +11,15 @@ vi.mock('./lib/panorama-api', () => ({
     blobName: 'blob-1-living-room.jpg',
   }),
   getPanoramaStatus: vi.fn().mockResolvedValue({ status: 'Completed' }),
-  getPanoramaDownloads: vi.fn().mockResolvedValue({ urlsSAS: ['https://tiles.example/0.jpg'] }),
+  getPanoramaDownloads: vi.fn().mockResolvedValue({
+    tiles: [{
+      urlSAS: 'https://tiles.example/0.jpg',
+      fileName: 'tile_r1_c1.jpg',
+      row: 1,
+      column: 1,
+    }],
+  }),
+  downloadPanoramaTile: vi.fn().mockResolvedValue(new Blob(['tile'])),
   getPanoramaArchiveUrl: vi.fn(
     (jobId: string) => `https://api.example/panorama/download-all?job-id=${jobId}`,
   ),
@@ -99,10 +107,11 @@ test('submits a valid cutter job and exposes Azure tile downloads', async () => 
   fireEvent.click(screen.getByRole('button', { name: /Begin slicing/ }))
 
   expect(await screen.findByRole('heading', { name: 'The grid is ready.' })).toBeInTheDocument()
-  expect(screen.getByRole('img', { name: 'Sliced tile 1' })).toHaveAttribute(
+  expect(screen.getByRole('img', { name: 'Sliced tile 1, 1' })).toHaveAttribute(
     'src',
     'https://tiles.example/0.jpg',
   )
+  expect(screen.getByRole('button', { name: 'Download tile_r1_c1.jpg' })).toBeEnabled()
   expect(screen.getByRole('link', { name: 'Download all tiles (.zip)' })).toHaveAttribute(
     'href',
     'https://api.example/panorama/download-all?job-id=job-1',

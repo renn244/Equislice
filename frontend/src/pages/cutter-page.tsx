@@ -14,6 +14,8 @@ import {
   getPanoramaArchiveUrl,
   getPanoramaDownloads,
   getPanoramaStatus, uploadToBlob,
+  downloadPanoramaTile,
+  type TileDownload,
 } from '../lib/panorama-api'
 import './cutter-page.css'
 import { PanoramaPreview } from './panorama-preview'
@@ -34,6 +36,7 @@ type SamplePanorama = {
 const minGridValue = 1
 const maxGridValue = 100
 const cutterJobStorageKey = 'equislice.cutter.job-id'
+const defaultFileNameTemplate = 'tile_r{row}_c{col}'
 
 const samplePanoramas: SamplePanorama[] = [
   { dimensions: '14506×2809', fileName: 'ridgeline-valley.jpg', path: '/ridgeline-valley.jpg' },
@@ -54,6 +57,18 @@ function isValidGridValue(value: string) {
   return Number.isInteger(parsedValue) && parsedValue >= minGridValue && parsedValue <= maxGridValue
 }
 
+function isValidFileNameTemplate(value: string) {
+  return value.includes('{row}') && value.includes('{col}')
+}
+
+function previewFileName(template: string) {
+  return `${template.replaceAll('{row}', '1').replaceAll('{col}', '1')}.jpg`
+}
+
+function resolveFileNameTemplate(template: string) {
+  return template.trim() || defaultFileNameTemplate
+}
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -67,6 +82,7 @@ export function CutterPage() {
   const [columns, setColumns] = useState('4')
   const [dimensions, setDimensions] = useState<ImageDimensions | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [fileNameTemplate, setFileNameTemplate] = useState('')
   const [jobError, setJobError] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | null>(
     () => window.localStorage.getItem(cutterJobStorageKey)?.trim() || null,
@@ -76,10 +92,14 @@ export function CutterPage() {
   const [rows, setRows] = useState('3')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
-  const [downloadUrls, setDownloadUrls] = useState<string[]>([])
+  const [downloads, setDownloads] = useState<TileDownload[]>([])
   const [downloadColumns, setDownloadColumns] = useState<number | null>(null)
+  const [downloadingTileKey, setDownloadingTileKey] = useState<string | null>(null)
+  const [tileDownloadError, setTileDownloadError] = useState<string | null>(null)
 
   const validGrid = isValidGridValue(columns) && isValidGridValue(rows)
+  const resolvedFileNameTemplate = resolveFileNameTemplate(fileNameTemplate)
+  const invalidFileNameTemplate = fileNameTemplate.trim() !== '' && !isValidFileNameTemplate(resolvedFileNameTemplate)
   const parsedColumns = validGrid ? Number(columns) : null
   const parsedRows = validGrid ? Number(rows) : null
   const tileCount = validGrid ? Number(columns) * Number(rows) : null
@@ -111,9 +131,9 @@ export function CutterPage() {
         setJobError(null)
 
         if (status === 'Completed') {
-          const { urlsSAS } = await getPanoramaDownloads(activeJobId)
+          const { tiles } = await getPanoramaDownloads(activeJobId)
           if (cancelled) return
-          setDownloadUrls(urlsSAS)
+          setDownloads(tiles)
           setDownloadColumns(columns)
           setJobState('completed')
           Sentry.metrics.count('equislice.panorama_slice.completed')
@@ -206,7 +226,8 @@ export function CutterPage() {
   async function handleSubmit() {
     if (!selectedFile || !validGrid) return
 
-    setDownloadUrls([])
+    setDownloads([])
+    setTileDownloadError(null)
     setJobError(null)
     setJobId(null)
     setJobState('submitting')
@@ -228,6 +249,7 @@ export function CutterPage() {
         rows: Number(rows),
         columns: Number(columns),
         file_formats: 'jpg',
+        file_name_format: resolvedFileNameTemplate,
       })
 
       setJobId(createdJobId)
@@ -239,6 +261,34 @@ export function CutterPage() {
 
       Sentry.metrics.count('equislice.panorama_slice.submit_failed')
       Sentry.logger.error('Panorama slicing submission failed')
+    }
+  }
+
+  async function handleTileDownload(tile: TileDownload) {
+    const tileKey = `${tile.row}-${tile.column}`
+
+    setDownloadingTileKey(tileKey)
+    setTileDownloadError(null)
+
+    try {
+      const blob = await downloadPanoramaTile(tile.urlSAS)
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+
+      link.href = objectUrl
+      link.download = tile.fileName
+      document.body.append(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { feature: 'panorama-tile-download' },
+        extra: { fileName: tile.fileName, row: tile.row, column: tile.column },
+      })
+      setTileDownloadError(`Couldn't download ${tile.fileName}. Please try again.`)
+    } finally {
+      setDownloadingTileKey(null)
     }
   }
 
@@ -415,6 +465,29 @@ export function CutterPage() {
                   <span>Not available in worker</span>
                 </button>
               </div>
+              <div className="file-name-template">
+                <label htmlFor="file-name-template">
+                  <span>Tile naming</span>
+                  <input
+                    aria-describedby="file-name-template-help"
+                    aria-invalid={invalidFileNameTemplate}
+                    id="file-name-template"
+                    onChange={(event) => setFileNameTemplate(event.target.value)}
+                    placeholder={defaultFileNameTemplate}
+                    spellCheck="false"
+                    type="text"
+                    value={fileNameTemplate}
+                  />
+                </label>
+                <p id="file-name-template-help">
+                  Optional. Leave blank for <code>{defaultFileNameTemplate}</code>, or use both <code>{'{row}'}</code> and <code>{'{col}'}</code>. The JPG extension is added automatically.
+                </p>
+                {!invalidFileNameTemplate ? (
+                  <p className="file-name-preview">First tile: <code>{previewFileName(resolvedFileNameTemplate)}</code></p>
+                ) : (
+                  <p className="cutter-error" role="alert">Include both <code>{'{row}'}</code> and <code>{'{col}'}</code>.</p>
+                )}
+              </div>
             </section>
 
             <section className="instrument-card file-details" aria-labelledby="details-title">
@@ -430,7 +503,7 @@ export function CutterPage() {
 
             <button
               className="begin-slicing-button"
-              disabled={!validGrid || isWorking}
+              disabled={!validGrid || invalidFileNameTemplate || isWorking}
               onClick={handleSubmit}
               type="button"
             >
@@ -487,12 +560,12 @@ export function CutterPage() {
 
             {jobError && <p className="cutter-error job-error" role="alert">{jobError}</p>}
 
-            {downloadUrls.length > 0 && (
+            {downloads.length > 0 && (
               <div className="cutter-tile-results">
                 <div className="result-heading">
                   <div>
                     <p className="es-kicker"><span /> Finished grid</p>
-                    <h3>{downloadUrls.length} aligned tiles.</h3>
+                    <h3>{downloads.length} aligned tiles.</h3>
                     <p>Each image below is loaded from the real Azure Storage output.</p>
                   </div>
                   {jobId && (
@@ -504,16 +577,30 @@ export function CutterPage() {
                 </div>
 
                 <div className="cutter-tile-gallery" style={tileGridStyle}>
-                  {downloadUrls.map((url, index) => (
-                    <a href={url} key={`${url}-${index}`} rel="noreferrer" target="_blank">
-                      <img alt={`Sliced tile ${index + 1}`} loading="lazy" src={url} />
-                      <span>
-                        {String.fromCharCode(65 + (index % Number(columns)))}
-                        {Math.floor(index / Number(columns)) + 1}
-                      </span>
-                    </a>
-                  ))}
+                  {downloads.map((tile) => {
+                    const tileKey = `${tile.row}-${tile.column}`
+                    const isDownloading = downloadingTileKey === tileKey
+
+                    return (
+                      <div className="cutter-tile" key={tileKey}>
+                        <a href={tile.urlSAS} rel="noreferrer" target="_blank" title={`Preview ${tile.fileName}`}>
+                          <img alt={`Sliced tile ${tile.row}, ${tile.column}`} loading="lazy" src={tile.urlSAS} />
+                          <span>{tile.fileName}</span>
+                        </a>
+                        <button
+                          aria-label={`Download ${tile.fileName}`}
+                          className="tile-download-button"
+                          disabled={isDownloading}
+                          onClick={() => void handleTileDownload(tile)}
+                          type="button"
+                        >
+                          {isDownloading ? <SyncIcon aria-hidden="true" className="spin-icon" size={13} /> : <DownloadIcon aria-hidden="true" size={13} />}
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
+                {tileDownloadError && <p className="cutter-error tile-download-error" role="alert">{tileDownloadError}</p>}
               </div>
             )}
           </section>

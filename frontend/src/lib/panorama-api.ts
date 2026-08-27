@@ -5,6 +5,14 @@ type PanoramaSliceInput = {
   rows: number
   columns: number
   file_formats: string
+  file_name_format: string
+}
+
+export type TileDownload = {
+  urlSAS: string
+  fileName: string
+  row: number
+  column: number
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -60,8 +68,18 @@ export function uploadToBlob(presignedUrl: string, file: File) {
   })
 }
 
+export async function downloadPanoramaTile(urlSAS: string) {
+  const response = await fetch(urlSAS)
+
+  if (!response.ok) {
+    throw new Error('The tile download failed. Please try again.')
+  }
+
+  return response.blob()
+}
+
 export function getPanoramaDownloads(jobId: string) {
-  return requestJson<{ urlsSAS: string[] }>(`/panorama/download?job-id=${encodeURIComponent(jobId)}`)
+  return requestJson<{ tiles: TileDownload[] }>(`/panorama/download?job-id=${encodeURIComponent(jobId)}`)
 }
 
 export function getPanoramaArchiveUrl(jobId: string) {

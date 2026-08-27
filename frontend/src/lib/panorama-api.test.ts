@@ -37,6 +37,7 @@ test('requests a presigned upload url and submits the slice as JSON', async () =
       rows: 3,
       columns: 6,
       file_formats: 'jpg',
+      file_name_format: 'tile_r{row}_c{col}',
     }),
   ).resolves.toEqual({ jobId: 'job-1' })
 
@@ -49,6 +50,7 @@ test('requests a presigned upload url and submits the slice as JSON', async () =
     rows: 3,
     columns: 6,
     file_formats: 'jpg',
+    file_name_format: 'tile_r{row}_c{col}',
   }))
 })
 
@@ -76,12 +78,24 @@ test('reads status and completed download URLs for a job', async () => {
     vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'Completed' }), { status: 200 }))
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ urlsSAS: ['https://tiles.example/0.jpg'] }), { status: 200 }),
+        new Response(JSON.stringify({
+          tiles: [{
+            urlSAS: 'https://tiles.example/0.jpg',
+            fileName: 'tile_r1_c1.jpg',
+            row: 1,
+            column: 1,
+          }],
+        }), { status: 200 }),
       ),
   )
 
   await expect(getPanoramaStatus('job-1')).resolves.toEqual({ status: 'Completed' })
   await expect(getPanoramaDownloads('job-1')).resolves.toEqual({
-    urlsSAS: ['https://tiles.example/0.jpg'],
+    tiles: [{
+      urlSAS: 'https://tiles.example/0.jpg',
+      fileName: 'tile_r1_c1.jpg',
+      row: 1,
+      column: 1,
+    }],
   })
 })
