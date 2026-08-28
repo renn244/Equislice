@@ -77,8 +77,7 @@
   transition: border-color 150ms ease, background 150ms ease;
 }
 
-.precision-dropzone:hover,
-.precision-dropzone:has(input:focus-visible) {
+.precision-dropzone:hover {
   border-color: var(--eq-teal);
   background: rgba(220, 233, 228, 0.28);
 }
@@ -454,11 +453,6 @@
   appearance: none;
 }
 
-.instrument-stepper:focus-within {
-  border-color: var(--eq-teal);
-  box-shadow: 0 0 0 2px rgba(14, 110, 99, 0.12);
-}
-
 .instrument-total {
   display: flex;
   min-height: 52px;
@@ -562,9 +556,8 @@
 }
 
 .file-name-template input:focus {
-  border-color: var(--eq-teal);
-  outline: 2px solid rgba(35, 105, 99, 0.15);
-  outline-offset: 1px;
+  border-color: var(--eq-line);
+  outline: none;
 }
 
 .file-name-template p {
@@ -854,8 +847,7 @@
 }
 
 .cutter-page button:focus-visible,
-.cutter-page a:focus-visible,
-.cutter-page label:has(input:focus-visible) {
+.cutter-page a:focus-visible {
   outline: 2px solid var(--eq-teal);
   outline-offset: 3px;
 }
