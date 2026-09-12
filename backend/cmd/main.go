@@ -1,130 +1,61 @@
 package main
 
 import (
-	"backend/internal/azure/blob"
-	"backend/internal/azure/queue"
-	"backend/internal/azure/table"
+	"backend/internal/bootstrap"
 	"backend/internal/config"
-	"backend/internal/dto"
-	"backend/internal/handler"
-	"backend/internal/services"
-	"backend/internal/util/constants"
-	"encoding/json"
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/getsentry/sentry-go"
-	sentryhttp "github.com/getsentry/sentry-go/http"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 )
 
 func main() {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	cfg := config.Load()
 
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              cfg.SentryDSN,
-		Environment:      cfg.SentryEnvironment,
-		EnableTracing:    true,
-		TracesSampleRate: 0.2,
-		SendDefaultPII:   false,
-	}); err != nil {
+	err := bootstrap.NewSentry(&cfg)
+	if err != nil {
 		fmt.Printf("Sentry initialization failed:  %v\n", err)
 		return
 	}
-	defer sentry.Flush(2 * time.Second)
 
-	r.Use(sentryhttp.New(sentryhttp.Options{
-		Repanic: true,
-	}).Handle)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{cfg.FrontendUrl},
-		AllowCredentials: true,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-	}))
-
-	// azure instances
-	panoramaStorage, err := blob.NewClient(blob.AzureBlobStorageConfig{
-		ConnectionString: cfg.AzureConnectionString,
-		Container:        constants.Container.Equirectangular,
-	})
+	app, err := bootstrap.NewApp(&cfg)
 	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
+		fmt.Printf("App initialization failed:  %v\n", err)
 		return
 	}
 
-	panoramaSliceStorage, err := blob.NewClient(blob.AzureBlobStorageConfig{
-		ConnectionString: cfg.AzureConnectionString,
-		Container:        constants.Container.EquirectangularSlice,
-	})
-	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
-		return
+	server := &http.Server{
+		Addr:    ":3000",
+		Handler: app.Router,
 	}
 
-	panoramaQueue, err := queue.NewClient(queue.AzureQueueStorageConfig{
-		ConnectionString: cfg.AzureConnectionString,
-		Queue:            constants.Queue.PanoramaSlice,
-	})
-	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
-		return
+	go func() {
+		log.Println("Server is Running on http://localhost:3000")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			sentry.CaptureException(err)
+			log.Fatal(err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Print("Shutdown signal received, shutting down gracefully")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server graceful shutdown failed: %v", err)
 	}
 
-	panoramaTable, err := table.NewClient(table.AzureTableDataConfig{
-		ConnectionString: cfg.AzureConnectionString,
-		Table:            constants.Table.Panorama,
-	})
-	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
-		return
-	}
-
-	// azure services
-	panoramaTableService := services.NewTableStorageService[dto.PanoramaEntity](panoramaTable.Client, panoramaTable.AzureTableDataConfig.Table, "Panoramas")
-
-	panoramaFileStorageService := services.NewFileStorageService(panoramaStorage.Client, panoramaStorage.AzureBlobStorageConfig.Container)
-	panoramaSliceFileStorageService := services.NewFileStorageService(panoramaSliceStorage.Client, panoramaSliceStorage.AzureBlobStorageConfig.Container)
-
-	panoramaQueueService := services.NewQueueService(panoramaQueue.Client, panoramaQueue.AzureQueueStorageConfig.Queue)
-
-	// logic services and handler
-	panoramaService := services.NewPanoramaService(panoramaFileStorageService, panoramaSliceFileStorageService, panoramaTableService, panoramaQueueService)
-	panoramaHandler := handler.NewPanoramaHandler(panoramaService)
-
-	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
-			"health": "ok",
-		})
-
-		log.Println("Server is Healthy.")
-	})
-
-	r.Post("/api/panorama/slice", panoramaHandler.PostPanorama)
-	r.Post("/api/panorama/upload", panoramaHandler.GetUploadUrl)
-	r.Get("/api/panorama/status", panoramaHandler.GetStatus)
-	r.Get("/api/panorama/download", panoramaHandler.GetShareUrl)
-	r.Get("/api/panorama/download-all", panoramaHandler.GetArchive)
-
-	log.Println("Server is Running on http://localhost:3000")
-	err = http.ListenAndServe(":3000", r)
-	if err != nil {
-		sentry.CaptureException(err)
-		log.Fatal(err)
-	}
+	log.Print("Server shutdown complete")
 }
