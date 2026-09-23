@@ -28,6 +28,18 @@ func main() {
 		return
 	}
 
+	traceProvider, err := bootstrap.InitTracer(ctx)
+	if err != nil {
+		fmt.Printf("Tracer initialization failed:  %v\n", err)
+		return
+	}
+
+	meterProvider, err := bootstrap.InitMetrics(ctx)
+	if err != nil {
+		fmt.Printf("Metrics initialization failed:  %v\n", err)
+		return
+	}
+
 	app, err := bootstrap.NewApp(&cfg)
 	if err != nil {
 		fmt.Printf("App initialization failed:  %v\n", err)
@@ -55,6 +67,12 @@ func main() {
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Fatalf("Server graceful shutdown failed: %v", err)
+	}
+	if err := traceProvider.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Tracer shutdown failed: %v", err)
+	}
+	if err := meterProvider.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Metrics shutdown failed: %v", err)
 	}
 
 	log.Print("Server shutdown complete")
