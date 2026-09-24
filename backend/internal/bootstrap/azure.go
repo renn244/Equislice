@@ -8,7 +8,10 @@ import (
 	"backend/internal/util/constants"
 	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/tracing/azotel"
 	"github.com/getsentry/sentry-go"
+	"go.opentelemetry.io/otel"
 )
 
 type AzureClients struct {
@@ -19,9 +22,13 @@ type AzureClients struct {
 }
 
 func NewAzure(cfg *config.Config) (*AzureClients, error) {
+	options := azcore.ClientOptions{}
+	options.TracingProvider = azotel.NewTracingProvider(otel.GetTracerProvider(), nil)
+
 	panoramaStorage, err := blob.NewClient(blob.AzureBlobStorageConfig{
 		ConnectionString: cfg.AzureConnectionString,
 		Container:        constants.Container.Equirectangular,
+		Options:          options,
 	})
 	if err != nil {
 		sentry.CaptureException(err)
@@ -32,6 +39,7 @@ func NewAzure(cfg *config.Config) (*AzureClients, error) {
 	panoramaSliceStorage, err := blob.NewClient(blob.AzureBlobStorageConfig{
 		ConnectionString: cfg.AzureConnectionString,
 		Container:        constants.Container.EquirectangularSlice,
+		Options:          options,
 	})
 	if err != nil {
 		sentry.CaptureException(err)
@@ -52,6 +60,7 @@ func NewAzure(cfg *config.Config) (*AzureClients, error) {
 	panoramaTable, err := table.NewClient(table.AzureTableDataConfig{
 		ConnectionString: cfg.AzureConnectionString,
 		Table:            constants.Table.Panorama,
+		Options:          options,
 	})
 	if err != nil {
 		sentry.CaptureException(err)

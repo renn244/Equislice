@@ -11,10 +11,25 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func NewRouter(cfg *config.Config, panoramaHandler *handler.PanoramaHandler) http.Handler {
 	r := chi.NewRouter()
+
+	r.Use(
+		otelhttp.NewMiddleware(
+			"equislice-http",
+			otelhttp.WithSpanNameFormatter(func(operationName string, r *http.Request) string {
+				if chi.RouteContext(r.Context()).RoutePattern() != "" {
+					return r.Method + " " + chi.RouteContext(r.Context()).RoutePattern()
+				}
+
+				return r.Method + "<No-Pattern>"
+			}),
+		),
+	)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 

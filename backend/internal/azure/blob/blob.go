@@ -3,6 +3,7 @@ package blob
 import (
 	"errors"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 )
 
@@ -13,6 +14,7 @@ var (
 type AzureBlobStorageConfig struct {
 	Container        string
 	ConnectionString string
+	Options          azcore.ClientOptions
 }
 
 type Client struct {
@@ -25,7 +27,10 @@ func NewClient(config AzureBlobStorageConfig) (*Client, error) {
 		return nil, ErrInvalidConnectionString
 	}
 
-	client, err := azblob.NewClientFromConnectionString(config.ConnectionString, nil)
+	client, err := azblob.NewClientFromConnectionString(config.ConnectionString, &azblob.ClientOptions{
+		ClientOptions: config.Options,
+	})
+
 	if err != nil {
 		return nil, ErrInvalidConnectionString
 	}

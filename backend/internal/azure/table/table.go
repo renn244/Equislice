@@ -3,6 +3,7 @@ package table
 import (
 	"errors"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
 )
 
@@ -16,6 +17,7 @@ var (
 type AzureTableDataConfig struct {
 	Table            string
 	ConnectionString string
+	Options          azcore.ClientOptions
 }
 
 type Client struct {
@@ -28,7 +30,10 @@ func NewClient(config AzureTableDataConfig) (*Client, error) {
 		return nil, ErrInvalidConnectionString
 	}
 
-	serviceClient, err := aztables.NewServiceClientFromConnectionString(config.ConnectionString, nil)
+	serviceClient, err := aztables.NewServiceClientFromConnectionString(config.ConnectionString, &aztables.ClientOptions{
+		ClientOptions: config.Options,
+	})
+
 	if err != nil {
 		return nil, ErrInvalidConnectionString
 	}

@@ -3,6 +3,7 @@ package queue
 import (
 	"errors"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2"
 )
 
@@ -16,6 +17,7 @@ var (
 type AzureQueueStorageConfig struct {
 	Queue            string
 	ConnectionString string
+	Options          azcore.ClientOptions
 }
 
 type Client struct {
@@ -28,7 +30,10 @@ func NewClient(config AzureQueueStorageConfig) (*Client, error) {
 		return nil, ErrInvalidConnectionString
 	}
 
-	client, err := azqueue.NewQueueClientFromConnectionString(config.ConnectionString, config.Queue, nil)
+	client, err := azqueue.NewQueueClientFromConnectionString(config.ConnectionString, config.Queue, &azqueue.ClientOptions{
+		ClientOptions: config.Options,
+	})
+
 	if err != nil {
 		return nil, ErrInvalidConnectionString
 	}

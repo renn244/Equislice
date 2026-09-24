@@ -12,6 +12,8 @@ github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.0 h1:irsmOWwkp0KCTTNS5
 github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.0/go.mod h1:GWcBkQj3MqN7ozHKLaCCAuNLiXoIGv2RtanfAwSjY/Y=
 github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2 v2.1.0 h1:gXi/Szhrv+GERejSQGd1+2VMKE2lz1SqJ+Px6sx5+XY=
 github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2 v2.1.0/go.mod h1:zndd0BC0AUGjy5o0DCrUGj5U5DM0Hekn+1IvHIWdmFY=
+github.com/Azure/azure-sdk-for-go/sdk/tracing/azotel v0.4.0 h1:RTTsXUJWn0jumeX62Mb153wYXykqnrzYBYDeHp0kiuk=
+github.com/Azure/azure-sdk-for-go/sdk/tracing/azotel v0.4.0/go.mod h1:k4MMjrPHIEK+umaMGk1GNLgjEybJZ9mHSRDZ+sDFv3Y=
 github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2 h1:RHK7bS+HQMslb1sZpAokUt+zTVmue0hKSs2C791hhzU=
 github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2/go.mod h1:HKpQxkWaGLJ+D/5H8QRpyQXA1eKjxkFlOMwck5+33Jk=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
