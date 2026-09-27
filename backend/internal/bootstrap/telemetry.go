@@ -55,7 +55,6 @@ func InitMetrics(ctx context.Context) (*sdkmetric.MeterProvider, error) {
 		ctx,
 		resource.WithFromEnv(),
 		resource.WithTelemetrySDK(),
-		resource.WithHostID(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create resource: %w", err)
