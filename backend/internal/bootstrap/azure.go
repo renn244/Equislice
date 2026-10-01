@@ -50,6 +50,7 @@ func NewAzure(cfg *config.Config) (*AzureClients, error) {
 	panoramaQueue, err := queue.NewClient(queue.AzureQueueStorageConfig{
 		ConnectionString: cfg.AzureConnectionString,
 		Queue:            constants.Queue.PanoramaSlice,
+		Options:          options,
 	})
 	if err != nil {
 		sentry.CaptureException(err)

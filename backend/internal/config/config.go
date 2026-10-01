@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -14,31 +14,34 @@ type Config struct {
 	SentryEnvironment     string
 }
 
-func Load() Config {
-	err := godotenv.Load()
-	if err != nil && !os.IsNotExist(err) {
-		log.Fatalf("failed to load .env file: %v", err)
+func Load() (Config, error) {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		return Config{}, fmt.Errorf("load .env file: %w", err)
+	}
+
+	azureConnectionString, err := requiredEnv("AZURE_CONNECTION_STRING")
+	if err != nil {
+		return Config{}, err
+	}
+	frontendURL, err := requiredEnv("FRONTEND_URL")
+	if err != nil {
+		return Config{}, err
 	}
 
 	return Config{
-		AzureConnectionString: getEnv("AZURE_CONNECTION_STRING", ""),
-		FrontendUrl:           getEnv("FRONTEND_URL", ""),
-		SentryDSN:             getEnv("SENTRY_DSN", ""),
-		SentryEnvironment:     getEnv("SENTRY_ENVIRONMENT", ""),
-	}
+		AzureConnectionString: azureConnectionString,
+		FrontendUrl:           frontendURL,
+		SentryDSN:             os.Getenv("SENTRY_DSN"),
+		SentryEnvironment:     os.Getenv("SENTRY_ENVIRONMENT"),
+	}, nil
 }
 
-func getEnv(key string, fallback string) string {
+
+func requiredEnv(key string) (string, error) {
 	value := os.Getenv(key)
-
-	if value == "" && fallback == "" {
-		log.Fatalf("%T does not exist and there is no fallback", key)
-		return ""
-	}
-
 	if value == "" {
-		return fallback
+		return "", fmt.Errorf("%s is required", key)
 	}
 
-	return value
+	return value, nil
 }

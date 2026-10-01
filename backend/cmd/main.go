@@ -17,33 +17,44 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Printf("Backend stopped: %v", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg := config.Load()
-
-	err := bootstrap.NewSentry(&cfg)
+	cfg, err := config.Load()
 	if err != nil {
-		fmt.Printf("Sentry initialization failed:  %v\n", err)
-		return
+		return fmt.Errorf("load configuration: %w", err)
+	}
+
+	if err := bootstrap.NewSentry(&cfg); err != nil {
+		log.Printf("Sentry initialization failed; continuing without Sentry: %v", err)
+	} else {
+		defer sentry.Flush(2 * time.Second)
 	}
 
 	traceProvider, err := bootstrap.InitTracer(ctx)
 	if err != nil {
-		fmt.Printf("Tracer initialization failed:  %v\n", err)
-		return
+		log.Printf("Tracer initialization failed; continuing without tracing: %v", err)
+	} else {
+		defer shutdownProvider("tracer", traceProvider.Shutdown)
 	}
 
 	meterProvider, err := bootstrap.InitMetrics(ctx)
 	if err != nil {
-		fmt.Printf("Metrics initialization failed:  %v\n", err)
-		return
+		log.Printf("Metrics initialization failed; continuing without metrics: %v", err)
+	} else {
+		defer shutdownProvider("metrics", meterProvider.Shutdown)
 	}
 
 	app, err := bootstrap.NewApp(&cfg)
 	if err != nil {
-		fmt.Printf("App initialization failed:  %v\n", err)
-		return
+		return fmt.Errorf("initialize application: %w", err)
 	}
 
 	server := &http.Server{
@@ -51,29 +62,39 @@ func main() {
 		Handler: app.Router,
 	}
 
+	serverErrors := make(chan error, 1)
 	go func() {
 		log.Println("Server is Running on http://localhost:3000")
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			sentry.CaptureException(err)
-			log.Fatal(err)
-		}
+		serverErrors <- server.ListenAndServe()
 	}()
 
-	<-ctx.Done()
-	log.Print("Shutdown signal received, shutting down gracefully")
+	select {
+	case <-ctx.Done():
+		log.Print("Shutdown signal received, shutting down gracefully")
+	case err := <-serverErrors:
+		if !errors.Is(err, http.ErrServerClosed) {
+			sentry.CaptureException(err)
+			return fmt.Errorf("serve HTTP requests: %w", err)
+		}
+		return nil
+	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("Server graceful shutdown failed: %v", err)
-	}
-	if err := traceProvider.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("Tracer shutdown failed: %v", err)
-	}
-	if err := meterProvider.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("Metrics shutdown failed: %v", err)
+		return fmt.Errorf("gracefully shut down server: %w", err)
 	}
 
 	log.Print("Server shutdown complete")
+	return nil
+}
+
+func shutdownProvider(name string, shutdown func(context.Context) error) {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := shutdown(shutdownCtx); err != nil {
+		log.Printf("%s shutdown failed: %v", name, err)
+	}
 }

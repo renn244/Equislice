@@ -47,12 +47,25 @@ jobs:
         working-directory: backend
 
       - name: Build Backend
-        run: GOOS=linux GOARCH=amd64 go build cmd/main.go
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd
         working-directory: backend
 
       - name: Build Container
         run: docker build -t equislice-backend:ci .
         working-directory: backend
+
+      - name: Verify container startup and health endpoint
+        working-directory: backend
+        env:
+          AZURE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNoGFuRlz2dA==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;
+          FRONTEND_URL: http://localhost:5173
+        run: |
+          docker run --detach --name equislice-backend-ci --publish 127.0.0.1:3000:3000 \
+            --env AZURE_CONNECTION_STRING \
+            --env FRONTEND_URL \
+            equislice-backend:ci
+          trap 'docker logs equislice-backend-ci; docker rm --force equislice-backend-ci' EXIT
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:3000/api/health
 
 
   deploy:
