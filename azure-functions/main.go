@@ -135,7 +135,19 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 	heightDimension := config.Height / panoramaEntity.Row
 	widthDimension := config.Width / panoramaEntity.Column
 
+	// GOAL: check if the blobs names already exist as completed blobs. using go routines to make it fast.
+	// and one fail check will make sure to create the panorama again.
+
+	// check for dequeu count of 2 as it will be the 2nd attempt and more dequeue count > 1
+	//if msg.DequeueCount > 1 {
+	// use the existing calculation of the for loop.
+	// use go routines to make sure that it runs separately if something is already missing then that mens we need to recalculate everything
+
+	//}
+
 	// LATER: check for remainder and put it on the last as an easy solution
+	var existingPanoramas []string
+
 	for i := range panoramaEntity.Row {
 
 		y0 := i * heightDimension
@@ -149,13 +161,19 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 			if err != nil {
 				sentry.CaptureException(err)
 
+				cleanupExistingBlobs(ctx, blobInstance, existingPanoramas)
+
 				return err
 			}
 
 			blobName := panoramaEntity.JobId + "\\" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
+			existingPanoramas = append(existingPanoramas, blobName)
+
 			_, err = uploadBlobStream(ctx, blobInstance, "equirectangular-slice", blobName, sliceBytes)
 			if err != nil {
 				sentry.CaptureException(err)
+
+				cleanupExistingBlobs(ctx, blobInstance, existingPanoramas)
 
 				return err
 			}
@@ -215,6 +233,16 @@ func logQueueItem(ctx context.Context, msg bindings.QueueMessage) {
 		"insertion_time", msg.InsertionTime,
 		"next_visible_time", msg.NextVisibleTime,
 	)
+}
+
+func cleanupExistingBlobs(ctx context.Context, blob *azblob.Client, existingBlobs []string) {
+	for _, blobName := range existingBlobs {
+		err := deleteBlob(ctx, blob, "equirectangular-slice", blobName)
+		if err != nil {
+			sentry.CaptureException(err)
+		}
+	}
+
 }
 
 func cropSlice(x0 int, y0 int, x1 int, y1 int, img image.Image) ([]byte, error) {
@@ -327,4 +355,13 @@ func uploadBlobStream(ctx context.Context, blob *azblob.Client, containerName st
 	}
 
 	return &response, nil
+}
+
+func deleteBlob(ctx context.Context, blob *azblob.Client, containerName string, blobName string) error {
+	_, err := blob.DeleteBlob(ctx, containerName, blobName, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
