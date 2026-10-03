@@ -12,10 +12,13 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/getsentry/sentry-go"
 
 	"github.com/azure/azure-functions-golang-worker/sdk"
@@ -110,6 +113,93 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 		return err
 	}
 
+	if msg.DequeueCount > 1 {
+
+		var tile_fileNames []string
+		var isABlobMissing bool = false
+		var blobError error
+
+		for i := range panoramaEntity.Row {
+			for j := range panoramaEntity.Column {
+				blobName := panoramaEntity.JobId + "\\" + strconv.Itoa(i) + "_" + strconv.Itoa(j) + ".jpg"
+
+				tile_fileNames = append(tile_fileNames, blobName)
+			}
+		}
+
+		type blobCheckResult struct {
+			exists bool
+			err    error
+		}
+
+		jobs := make(chan string)
+		results := make(chan blobCheckResult)
+
+		var wg sync.WaitGroup
+		wg.Add(6)
+
+		for range 6 {
+			go func() {
+				defer wg.Done()
+
+				for fileName := range jobs {
+					_, err := getPropertiesBlob(ctx, blobInstance, "equirectangular-slice", fileName)
+
+					if err != nil {
+						if bloberror.HasCode(err, bloberror.BlobNotFound) {
+							results <- blobCheckResult{exists: false}
+							continue
+						}
+
+						results <- blobCheckResult{err: err}
+						continue
+					}
+
+					results <- blobCheckResult{exists: true}
+				}
+			}()
+		}
+
+		go func() {
+			for _, fileName := range tile_fileNames {
+				jobs <- fileName
+			}
+
+			close(jobs)
+		}()
+
+		go func() {
+			wg.Wait()
+
+			close(results)
+		}()
+
+		for result := range results {
+			if result.err != nil && blobError == nil {
+				blobError = result.err
+			}
+
+			if !result.exists {
+				isABlobMissing = true
+			}
+		}
+
+		if blobError != nil {
+			return blobError
+		}
+
+		if !isABlobMissing {
+			err = updateStatusJobEntity(ctx, panoramaTable, body.JobId, "Completed", &panoramaEntity.JobId)
+			if err != nil {
+				sentry.CaptureException(err)
+
+				return err
+			}
+
+			return nil
+		}
+	}
+
 	imageResponse, err := downloadBlobStream(ctx, blobInstance, "equirectangular", panoramaEntity.InitialPanoramaId)
 	if err != nil {
 		sentry.CaptureException(err)
@@ -134,16 +224,6 @@ func processPanoramaSliceHandler(ctx context.Context, msg bindings.QueueMessage)
 
 	heightDimension := config.Height / panoramaEntity.Row
 	widthDimension := config.Width / panoramaEntity.Column
-
-	// GOAL: check if the blobs names already exist as completed blobs. using go routines to make it fast.
-	// and one fail check will make sure to create the panorama again.
-
-	// check for dequeu count of 2 as it will be the 2nd attempt and more dequeue count > 1
-	//if msg.DequeueCount > 1 {
-	// use the existing calculation of the for loop.
-	// use go routines to make sure that it runs separately if something is already missing then that mens we need to recalculate everything
-
-	//}
 
 	// LATER: check for remainder and put it on the last as an easy solution
 	var existingPanoramas []string
@@ -291,9 +371,6 @@ func updateStatusJobEntity(ctx context.Context, table *aztables.Client, jobId st
 
 	_, err = table.UpdateEntity(ctx, marshalledEntity, nil)
 	if err != nil {
-		// handle when entity does not exist
-		// handle update entity
-
 		return err
 	}
 
@@ -345,6 +422,18 @@ func downloadBlobStream(ctx context.Context, blob *azblob.Client, containerName 
 	}
 
 	return imageResponse, nil
+}
+
+func getPropertiesBlob(ctx context.Context, blob *azblob.Client, containerName string, blobName string) (*blob.GetPropertiesResponse, error) {
+	containerClient := blob.ServiceClient().NewContainerClient(containerName)
+	tileClient := containerClient.NewBlockBlobClient(blobName)
+	data, err := tileClient.GetProperties(ctx, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
 }
 
 func uploadBlobStream(ctx context.Context, blob *azblob.Client, containerName string, blobName string, blobData []byte) (*azblob.UploadStreamResponse, error) {
