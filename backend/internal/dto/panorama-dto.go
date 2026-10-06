@@ -12,7 +12,8 @@ type PanoramaEntity struct {
 }
 
 type PanoramaQueueMessage struct {
-	JobId string `json:"job_id"`
+	JobId        string            `json:"job_id"`
+	TraceContext map[string]string `json:"trace_context,omitempty"`
 }
 
 type PostPanoramaRequest struct {

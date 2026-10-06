@@ -216,6 +216,10 @@ resource "azapi_resource" "function" {
           EQUISLICE_STORAGE_CONNECTION_STRING   = azurerm_storage_account.equislice-sa.primary_connection_string
           SENTRY_DSN                            = var.function_sentry_dsn
           SENTRY_ENVIRONMENT                    = var.function_sentry_environment
+          OTEL_EXPORTER_OTLP_ENDPOINT           = var.grafana_otlp_endpoint
+          OTEL_EXPORTER_OTLP_HEADERS            = var.grafana_otlp_headers
+          OTEL_SERVICE_NAME                     = "equislice-function"
+          OTEL_RESOURCE_ATTRIBUTES              = "deployment.environment=production"
         } : { name = name, value = value }]
       }
     }

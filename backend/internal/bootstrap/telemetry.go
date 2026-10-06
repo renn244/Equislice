@@ -14,6 +14,13 @@ import (
 )
 
 func InitTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{},
+			propagation.Baggage{},
+		),
+	)
+
 	// initialize the resource which is what will contain the actual traces telemetry. with from env it will contain things like production and app name and more
 	// with telemetry sdk it will give the telemetry sdk version when sending the telemetry
 	res, err := resource.New(
@@ -39,13 +46,6 @@ func InitTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 
 	// we just register it in the otel so its becomes global
 	otel.SetTracerProvider(traceProvider)
-
-	otel.SetTextMapPropagator(
-		propagation.NewCompositeTextMapPropagator(
-			propagation.TraceContext{},
-			propagation.Baggage{},
-		),
-	)
 
 	return traceProvider, nil
 }

@@ -18,6 +18,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type PanoramaService struct {
@@ -65,8 +70,27 @@ func (s *PanoramaService) PostPanorama(ctx context.Context, panoramaFileName str
 		return "", fmt.Errorf("failed to add entity: %w", err)
 	}
 
+	ctx, span := otel.Tracer("backend/internal/services").Start(ctx, constants.Queue.PanoramaSlice+" send",
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			semconv.MessagingSystemKey.String("azure_queue"),
+			semconv.MessagingDestinationName(constants.Queue.PanoramaSlice),
+			semconv.MessagingOperationTypeSend,
+		),
+	)
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "queue send failed")
+		}
+		span.End()
+	}()
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+
 	JobQueueMessage, err := json.Marshal(dto.PanoramaQueueMessage{
-		JobId: jobId,
+		JobId:        jobId,
+		TraceContext: carrier,
 	})
 	if err != nil {
 		s.DB.Delete(ctx, jobId)
