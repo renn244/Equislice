@@ -47,7 +47,7 @@ jobs:
         working-directory: backend
 
       - name: Build Backend
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "${{ runner.temp }}/equislice-backend" ./cmd
         working-directory: backend
 
       - name: Build Container
