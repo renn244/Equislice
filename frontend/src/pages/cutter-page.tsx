@@ -39,10 +39,10 @@ const cutterJobStorageKey = 'equislice.cutter.job-id'
 const defaultFileNameTemplate = 'tile_r{row}_c{col}'
 
 const samplePanoramas: SamplePanorama[] = [
-  { dimensions: '14506×2809', fileName: 'ridgeline-valley.jpg', path: '/ridgeline-valley.jpg' },
-  { dimensions: '14673×3476', fileName: 'alpine-path.jpg', path: '/alpine-path.jpg' },
-  { dimensions: '9968×2848', fileName: 'summit-overlook.jpg', path: '/summit-overlook.jpg' },
-  { dimensions: '6754×4503', fileName: 'harbor-nightfall.jpg', path: '/harbor-nightfall.jpg' },
+  { dimensions: '1800×349', fileName: 'ridgeline-valley.jpg', path: '/ridgeline-valley.jpg' },
+  { dimensions: '1800×426', fileName: 'alpine-path.jpg', path: '/alpine-path.jpg' },
+  { dimensions: '1800×514', fileName: 'summit-overlook.jpg', path: '/summit-overlook.jpg' },
+  { dimensions: '1800×1200', fileName: 'harbor-nightfall.jpg', path: '/harbor-nightfall.jpg' },
 ]
 
 const workflowStates: { key: JobState; label: string }[] = [
