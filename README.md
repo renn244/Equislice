@@ -167,6 +167,18 @@ Sentry DSNs) are Key Vault references resolved at runtime; see
 
 ## Validation commands
 
+Install frontend dependencies to enable Husky's local pre-commit hook:
+
+```powershell
+npm ci --prefix frontend
+```
+
+Before each commit, the hook runs Go linting, tests, and Linux builds for both
+services, followed by frontend linting, tests, and the production build. Node.js
+and Go must be available to Git. Build executables go into ignored `bin/` folders.
+Checks validate the working tree, so stage the code you validated before committing.
+GitHub Actions keeps its own existing validation commands.
+
 ```powershell
 Set-Location frontend
 npm test

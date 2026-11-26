@@ -1,0 +1,23 @@
+set -e
+
+git diff --cached --check
+
+(
+  cd backend
+  go vet ./...
+  go test ./...
+  mkdir -p bin
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/equislice-backend ./cmd
+)
+
+(
+  cd azure-functions
+  go vet ./...
+  go test ./...
+  mkdir -p bin
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/equislice-function .
+)
+
+npm --prefix frontend run lint
+npm --prefix frontend test
+npm --prefix frontend run build
