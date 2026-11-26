@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const cutterStyles = readFileSync(resolve(process.cwd(), 'src/pages/cutter-page.css'), 'utf8')
+const cutterStyles = readFileSync(resolve(process.cwd(), 'src/features/cutter/pages/cutter-page.css'), 'utf8')
 
 describe('cutter page styles', () => {
   it('uses the shared Precision Instrument tokens instead of a separate palette', () => {

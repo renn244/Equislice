@@ -1,12 +1,12 @@
 ﻿import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import App from './App'
-import { createPanoramaSlice } from './lib/panorama-api'
+import { createPanoramaSlice } from './features/cutter/api/panorama.api'
 import { router } from './router'
 
-vi.mock('./lib/panorama-api', () => ({
+vi.mock('./features/cutter/api/panorama.api', () => ({
   createPanoramaSlice: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
-  getPanoaramaUploadUrl: vi.fn().mockResolvedValue({
+  getPanoramaUploadUrl: vi.fn().mockResolvedValue({
     urlSAS: 'https://blob.example/upload',
     blobName: 'blob-1-living-room.jpg',
   }),
@@ -60,6 +60,7 @@ async function selectPanorama() {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  window.localStorage.clear()
   vi.mocked(createPanoramaSlice).mockReset()
   vi.mocked(createPanoramaSlice).mockResolvedValue({ jobId: 'job-1' })
 })
@@ -127,4 +128,36 @@ test('shows a submit error when a valid cutter job cannot be created', async () 
   expect(await screen.findByRole('alert')).toHaveTextContent(
     'We could not create this tile set. Please try again.',
   )
+})
+
+test('validates tile naming and submits the configured grid through the form', async () => {
+  await renderCutter()
+  await selectPanorama()
+  fireEvent.change(screen.getByLabelText('Tile naming'), { target: { value: 'missing-tokens' } })
+  expect(screen.getByRole('button', { name: /Begin slicing/ })).toBeDisabled()
+  expect(createPanoramaSlice).not.toHaveBeenCalled()
+
+  fireEvent.change(screen.getByLabelText('Tile naming'), { target: { value: 'scene_{row}_{col}' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Increase Columns' }))
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Rows' }), { target: { value: '2' } })
+  fireEvent.click(screen.getByRole('button', { name: /Begin slicing/ }))
+
+  await screen.findByRole('heading', { name: 'The grid is ready.' })
+  expect(createPanoramaSlice).toHaveBeenCalledWith({
+    file: 'blob-1-living-room.jpg',
+    rows: 2,
+    columns: 5,
+    file_formats: 'jpg',
+    file_name_format: 'scene_{row}_{col}',
+  })
+})
+
+test('restores a saved job without requiring another image upload', async () => {
+  window.localStorage.setItem('equislice.cutter.job-id', 'saved-job')
+  await renderCutter()
+  await screen.findByRole('heading', { name: 'The grid is ready.' })
+  expect(screen.getByRole('link', { name: 'Download all tiles (.zip)' })).toHaveAttribute(
+    'href', 'https://api.example/panorama/download-all?job-id=saved-job',
+  )
+  expect(createPanoramaSlice).not.toHaveBeenCalled()
 })

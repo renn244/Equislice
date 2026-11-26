@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import { PanoramaPreview } from './panorama-preview'
+import { PanoramaPreview } from './PanoramaPreview'
 
 afterEach(cleanup)
 

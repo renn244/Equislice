@@ -13,6 +13,13 @@ EquiSlice turns an equirectangular panorama into an evenly sized grid of JPEG ti
 | `azure-functions/` | Go Azure Function that consumes panorama slice jobs |
 | `terraform/` | Azure infrastructure configuration |
 
+The cutter frontend lives in `frontend/src/features/cutter/`. Its page composes
+display components and a React Hook Form form; `forms/cutterForm.schema.ts` owns
+Zod validation and defaults. The `hooks/` folder handles image preview lifecycle,
+job submission and polling, and tile downloads. HTTP requests stay in `api/`, with
+shared feature types in `types/`. Keep new cutter logic in these modules so the
+page stays focused on composing the screen.
+
 ## Architecture flows
 
 ### 1. Submit a panorama job

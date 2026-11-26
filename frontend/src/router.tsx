@@ -2,10 +2,10 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
 } from '@tanstack/react-router'
 import { LandingPage } from './pages/landing-page'
 import { RootLayout } from './route-components'
-import { CutterPage } from './pages/cutter-page'
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -20,7 +20,7 @@ const landingRoute = createRoute({
 const cutterRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'cutter',
-  component: CutterPage,
+  component: lazyRouteComponent(() => import('./features/cutter/pages/CutterPage'), 'CutterPage'),
 })
 
 const routeTree = rootRoute.addChildren([landingRoute, cutterRoute])
