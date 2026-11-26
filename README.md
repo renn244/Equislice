@@ -120,6 +120,51 @@ func start
 
 The Go Function worker uses `FUNCTIONS_WORKER_RUNTIME=native` locally. The deployed Flex Consumption app uses its runtime configuration (`go`, version `1.0`) rather than that local setting.
 
+## Observability
+
+| Tool | Covers | Configured by |
+| --- | --- | --- |
+| Sentry | Errors from the frontend (`VITE_SENTRY_DSN`), API, and Function (`SENTRY_DSN`, `SENTRY_ENVIRONMENT`) | `.env` files locally, app settings in Azure |
+| OpenTelemetry → Grafana Cloud | Traces from the API and Function; HTTP metrics from the API | `OTEL_*` variables |
+| Application Insights | Function host logs and invocations | Terraform |
+
+### Traces
+
+A slicing job appears in Grafana Cloud (Explore → Tempo) as one trace across both
+services:
+
+1. `POST /api/panorama/slice` — the API request span (service `equislice-api`).
+2. `panorama-slice send` — the API enqueues the job and writes the W3C trace
+   context into the queue message.
+3. `panorama-slice process` — the Function continues the same trace from that
+   message (service `equislice-function`), with child spans for Blob and Table
+   Storage calls.
+
+Search by `service.name` = `equislice-api` or `equislice-function`. API metrics
+come from the `otelhttp` middleware (for example, request duration by route).
+
+### Configuration
+
+Both services use the standard OpenTelemetry environment variables and the OTLP
+HTTP exporter, so no code changes are needed to point them elsewhere:
+
+```dotenv
+OTEL_SERVICE_NAME=equislice-api
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-<region>.grafana.net/otlp
+OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic <base64 of instanceId:token>"
+OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local
+```
+
+Grafana Cloud generates these values under your stack's OpenTelemetry
+configuration page. Locally, add them to `backend/.env` (use
+`OTEL_SERVICE_NAME=equislice-function` in the `Values` of
+`azure-functions/local.settings.json`). If they are missing, the exporter falls
+back to `localhost:4318` and logs export errors, but the services keep running.
+
+In Azure, Terraform sets these variables on both apps. The auth header (and the
+Sentry DSNs) are Key Vault references resolved at runtime; see
+[`terraform/README.md`](terraform/README.md#key-vault-secrets) to rotate them.
+
 ## Validation commands
 
 ```powershell
@@ -132,3 +177,5 @@ npm run lint
 ## Security note
 
 Storage account keys and connection strings grant broad storage access. Keep them in local environment files or Azure app settings, not in source control. If a key is ever exposed, rotate it and update the backend and Function App configuration together.
+
+In Azure, third-party secrets (Sentry DSNs and the Grafana OTLP token) live only in the `equislice-kv-renn244` Key Vault. To rotate one, update the secret in the vault and restart the affected app; no Terraform run is needed.
