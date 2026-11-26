@@ -44,7 +44,7 @@ export function LandingPage() {
 
           <div className="hero-grid-frame">
             <div className="hero-grid-meta">
-              <span>source.jpg · 14506×2809</span>
+              <span>source.jpg · 1800×349</span>
               <span>4 × 2 grid</span>
             </div>
             <div
