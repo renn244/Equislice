@@ -60,6 +60,7 @@ tmp/
 .vscode/
 .agents/
 .codex/
+.mcp.json
 *.suo
 *.ntvs*
 *.njsproj
