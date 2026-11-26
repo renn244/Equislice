@@ -21,9 +21,10 @@ func main() {
 		Environment: os.Getenv("SENTRY_ENVIRONMENT"),
 	})
 	if err != nil {
-		panic(err)
+		slog.Error("Sentry initialization failed; continuing without Sentry", "error", err)
+	} else {
+		defer sentry.Flush(2 * time.Second)
 	}
-	defer sentry.Flush(2 * time.Second)
 
 	traceProvider, err := bootstrap.InitTracer(context.Background())
 	if err != nil {
