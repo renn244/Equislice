@@ -3,6 +3,7 @@ package router
 import (
 	"backend/internal/config"
 	"backend/internal/handler"
+	"backend/internal/util"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -29,6 +30,9 @@ func NewRouter(cfg *config.Config, panoramaHandler *handler.PanoramaHandler) htt
 				return r.Method + "<No-Pattern>"
 			}),
 		),
+		// Must come after otelhttp so its span and metric labeler exist. It adds the
+		// route once chi has matched it, which the formatter above runs too early to see.
+		util.RouteTelemetry,
 	)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
