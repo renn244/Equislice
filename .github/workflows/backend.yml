@@ -57,7 +57,8 @@ jobs:
       - name: Verify container startup and health endpoint
         working-directory: backend
         env:
-          AZURE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNoGFuRlz2dA==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;
+          # Azurite's public, documented development key; not a secret.
+          AZURE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;
           FRONTEND_URL: http://localhost:5173
         run: |
           docker run --detach --name equislice-backend-ci --publish 127.0.0.1:3000:3000 \
@@ -65,7 +66,7 @@ jobs:
             --env FRONTEND_URL \
             equislice-backend:ci
           trap 'docker logs equislice-backend-ci; docker rm --force equislice-backend-ci' EXIT
-          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:3000/api/health
+          curl --fail --retry 10 --retry-all-errors --retry-delay 1 http://127.0.0.1:3000/api/health
 
 
   deploy:
