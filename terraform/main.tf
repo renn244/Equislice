@@ -79,8 +79,8 @@ resource "azurerm_storage_queue" "poison" {
 }
 
 resource "azurerm_storage_table" "equislice-sa-table" {
-  name                 = "Panorama"
-  storage_account_name = azurerm_storage_account.equislice-sa.name
+  name               = "Panorama"
+  storage_account_id = azurerm_storage_account.equislice-sa.id
 }
 
 resource "azurerm_service_plan" "backend-sp" {
