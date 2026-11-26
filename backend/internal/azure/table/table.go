@@ -2,6 +2,7 @@ package table
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
@@ -35,7 +36,7 @@ func NewClient(config AzureTableDataConfig) (*Client, error) {
 	})
 
 	if err != nil {
-		return nil, ErrInvalidConnectionString
+		return nil, fmt.Errorf("%w: %w", ErrInvalidConnectionString, err)
 	}
 
 	client := serviceClient.NewClient(config.Table)

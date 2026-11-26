@@ -7,6 +7,8 @@ import (
 	"backend/internal/router"
 	"backend/internal/services"
 	"net/http"
+
+	"github.com/getsentry/sentry-go"
 )
 
 type App struct {
@@ -16,6 +18,7 @@ type App struct {
 func NewApp(cfg *config.Config) (*App, error) {
 	azure, err := NewAzure(cfg)
 	if err != nil {
+		sentry.CaptureException(err)
 		return nil, err
 	}
 

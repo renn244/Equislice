@@ -6,11 +6,9 @@ import (
 	"backend/internal/azure/table"
 	"backend/internal/config"
 	"backend/internal/util/constants"
-	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/tracing/azotel"
-	"github.com/getsentry/sentry-go"
 	"go.opentelemetry.io/otel"
 )
 
@@ -31,8 +29,6 @@ func NewAzure(cfg *config.Config) (*AzureClients, error) {
 		Options:          options,
 	})
 	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -42,8 +38,6 @@ func NewAzure(cfg *config.Config) (*AzureClients, error) {
 		Options:          options,
 	})
 	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -53,8 +47,6 @@ func NewAzure(cfg *config.Config) (*AzureClients, error) {
 		Options:          options,
 	})
 	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -64,8 +56,6 @@ func NewAzure(cfg *config.Config) (*AzureClients, error) {
 		Options:          options,
 	})
 	if err != nil {
-		sentry.CaptureException(err)
-		fmt.Println(err)
 		return nil, err
 	}
 

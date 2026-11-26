@@ -2,6 +2,7 @@ package queue
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue/v2"
@@ -35,7 +36,7 @@ func NewClient(config AzureQueueStorageConfig) (*Client, error) {
 	})
 
 	if err != nil {
-		return nil, ErrInvalidConnectionString
+		return nil, fmt.Errorf("%w: %w", ErrInvalidConnectionString, err)
 	}
 
 	return &Client{

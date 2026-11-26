@@ -2,6 +2,7 @@ package blob
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
@@ -32,7 +33,7 @@ func NewClient(config AzureBlobStorageConfig) (*Client, error) {
 	})
 
 	if err != nil {
-		return nil, ErrInvalidConnectionString
+		return nil, fmt.Errorf("%w: %w", ErrInvalidConnectionString, err)
 	}
 
 	return &Client{
