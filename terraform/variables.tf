@@ -16,6 +16,12 @@ variable "github_principal_id" {
   default     = "31930435-3956-4545-ba00-a147db4ffe4b"
 }
 
+variable "secrets_admin_object_id" {
+  type        = string
+  description = "Entra object ID of the user who manages Key Vault secret values."
+  default     = "988c6f0f-7a7e-44a1-a16f-81040d367bae"
+}
+
 variable "backend_image" {
   type        = string
   description = "Bootstrap image. After creation GitHub Actions owns image releases."
@@ -27,35 +33,14 @@ variable "frontend_url" {
   default = "https://equislice.vercel.app"
 }
 
-variable "backend_sentry_dsn" {
+variable "sentry_environment" {
   type        = string
-  sensitive   = true
-  description = "Existing backend Sentry DSN, loaded by Export-LiveSettings.ps1."
-}
-
-variable "backend_sentry_environment" {
-  type        = string
-  description = "Existing backend Sentry environment."
-}
-
-variable "function_sentry_dsn" {
-  type        = string
-  sensitive   = true
-  description = "Existing Function Sentry DSN, loaded by Export-LiveSettings.ps1."
-}
-
-variable "function_sentry_environment" {
-  type        = string
-  description = "Existing Function Sentry environment."
+  description = "Sentry environment for both apps."
+  default     = "production"
 }
 
 variable "grafana_otlp_endpoint" {
   type        = string
-  description = "Grafana Cloud OTLP HTTP endpoint."
-}
-
-variable "grafana_otlp_headers" {
-  type        = string
-  sensitive   = true
-  description = "Grafana Cloud OTLP authentication header."
+  description = "Grafana Cloud OTLP HTTP endpoint (not secret; the auth header is in Key Vault)."
+  default     = "https://otlp-gateway-prod-ap-southeast-1.grafana.net/otlp"
 }

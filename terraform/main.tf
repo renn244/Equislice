@@ -100,6 +100,12 @@ resource "azurerm_linux_web_app" "backend" {
   ftp_publish_basic_authentication_enabled       = false
   webdeploy_publish_basic_authentication_enabled = false
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.apps.id]
+  }
+  key_vault_reference_identity_id = azurerm_user_assigned_identity.apps.id
+
   logs {
     http_logs {
       file_system {
@@ -112,12 +118,12 @@ resource "azurerm_linux_web_app" "backend" {
   app_settings = {
     AZURE_CONNECTION_STRING             = azurerm_storage_account.equislice-sa.primary_connection_string
     FRONTEND_URL                        = var.frontend_url
-    SENTRY_DSN                          = var.backend_sentry_dsn
-    SENTRY_ENVIRONMENT                  = var.backend_sentry_environment
+    SENTRY_DSN                          = local.key_vault_refs.backend_sentry_dsn
+    SENTRY_ENVIRONMENT                  = var.sentry_environment
     WEBSITE_PORT                        = "3000"
     WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
     OTEL_EXPORTER_OTLP_ENDPOINT         = var.grafana_otlp_endpoint
-    OTEL_EXPORTER_OTLP_HEADERS          = var.grafana_otlp_headers
+    OTEL_EXPORTER_OTLP_HEADERS          = local.key_vault_refs.grafana_otlp_headers
     OTEL_SERVICE_NAME                   = "equislice-api"
     OTEL_RESOURCE_ATTRIBUTES            = "deployment.environment=production"
   }
@@ -174,12 +180,19 @@ resource "azapi_resource" "function" {
     "hidden-link: /app-insights-resource-id" = azurerm_application_insights.function.id
   }
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.apps.id]
+  }
+
   body = {
     kind = "functionapp,linux"
     properties = {
-      serverFarmId        = azurerm_service_plan.function.id
-      httpsOnly           = true
-      publicNetworkAccess = "Enabled"
+      # ARM returns the lowercase "serverfarms" segment; matching it avoids a perpetual diff.
+      serverFarmId              = replace(azurerm_service_plan.function.id, "Microsoft.Web/serverFarms", "Microsoft.Web/serverfarms")
+      keyVaultReferenceIdentity = azurerm_user_assigned_identity.apps.id
+      httpsOnly                 = true
+      publicNetworkAccess       = "Enabled"
       functionAppConfig = {
         runtime = {
           name    = "go"
@@ -214,10 +227,10 @@ resource "azapi_resource" "function" {
           AzureWebJobsStorage                   = azurerm_storage_account.equislice-sa.primary_connection_string
           DEPLOYMENT_STORAGE_CONNECTION_STRING  = azurerm_storage_account.equislice-sa.primary_connection_string
           EQUISLICE_STORAGE_CONNECTION_STRING   = azurerm_storage_account.equislice-sa.primary_connection_string
-          SENTRY_DSN                            = var.function_sentry_dsn
-          SENTRY_ENVIRONMENT                    = var.function_sentry_environment
+          SENTRY_DSN                            = local.key_vault_refs.function_sentry_dsn
+          SENTRY_ENVIRONMENT                    = var.sentry_environment
           OTEL_EXPORTER_OTLP_ENDPOINT           = var.grafana_otlp_endpoint
-          OTEL_EXPORTER_OTLP_HEADERS            = var.grafana_otlp_headers
+          OTEL_EXPORTER_OTLP_HEADERS            = local.key_vault_refs.grafana_otlp_headers
           OTEL_SERVICE_NAME                     = "equislice-function"
           OTEL_RESOURCE_ATTRIBUTES              = "deployment.environment=production"
         } : { name = name, value = value }]
