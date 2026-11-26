@@ -1,4 +1,5 @@
 import { CheckCircleFillIcon, DownloadIcon, HourglassIcon, SyncIcon } from '@primer/octicons-react'
+import { useEffect, useState } from 'react'
 import { getPanoramaArchiveUrl } from '../api/panorama.api'
 import { useTileDownloads } from '../hooks/useTileDownloads'
 import type { JobState, TileDownload } from '../types/panorama.type'
@@ -10,6 +11,23 @@ const workflowStates: { key: JobState; label: string }[] = [
   { key: 'completed', label: 'Complete' },
 ]
 
+// The slicer scales to zero when idle, so the first job after a quiet period
+// waits in the queue while Azure starts an instance (typically 3–9 s).
+const slowQueueDelayMs = 3000
+
+function useSlowQueue(jobId: string | null, jobState: JobState) {
+  const queuedJobId = jobState === 'queued' ? jobId : null
+  const [slowJobId, setSlowJobId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!queuedJobId) return
+    const timer = setTimeout(() => setSlowJobId(queuedJobId), slowQueueDelayMs)
+    return () => clearTimeout(timer)
+  }, [queuedJobId])
+
+  return queuedJobId !== null && slowJobId === queuedJobId
+}
+
 type PanoramaJobPanelProps = {
   jobId: string | null
   jobState: JobState
@@ -20,6 +38,7 @@ type PanoramaJobPanelProps = {
 
 export function PanoramaJobPanel({ jobId, jobState, jobError, downloads, downloadColumns }: PanoramaJobPanelProps) {
   const { downloadingTileKey, tileDownloadError, download: handleTileDownload } = useTileDownloads()
+  const isSlowQueue = useSlowQueue(jobId, jobState)
   const workflowIndex = workflowStates.findIndex(({ key }) => key === jobState)
   const tileGridStyle = downloadColumns ? { gridTemplateColumns: `repeat(${downloadColumns}, minmax(0, 1fr))` } : undefined
 
@@ -61,6 +80,12 @@ export function PanoramaJobPanel({ jobId, jobState, jobError, downloads, downloa
             )
           })}
         </ol>
+      )}
+
+      {isSlowQueue && (
+        <p className="job-note">
+          Starting up the slicer. The first job after a quiet period can take up to 10 seconds.
+        </p>
       )}
 
       {jobError && <p className="cutter-error job-error" role="alert">{jobError}</p>}

@@ -747,6 +747,16 @@
   background: rgba(228, 87, 46, 0.08);
 }
 
+.job-note {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-left: 2px solid var(--eq-teal);
+  background: var(--eq-teal-soft);
+  color: var(--eq-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .cutter-tile-results {
   display: grid;
   gap: 22px;
